@@ -334,16 +334,16 @@ class Wechat:
         return False
 
     def __getImgUrl(self, msgId):
-        # return self.base_uri + '/webwxgetmsgimg?MsgID=%s&skey=%s' % (msgId, self.skey)
-        pass
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(msgId, self.skey)
+        return url
 
     def __getVoiceUrl(self, msgId):
-        # return self.base_uri + '/webwxgetvoice?MsgID=%s&skey=%s' % (msgId, self.skey)
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgid=%s&skey=%s'%(msgId, self.skey)
         pass
 
     def __getVideoUrl(self, msgId):
-        # return self.base_uri + '/webwxgetvideo?msgid=%s&skey=%s' % (msgId, self.skey)
-        pass
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgid=%s&skey=%s'%(msgId, self.skey)
+        return url
 
     def processMsg(self, msg):
         print(msg)

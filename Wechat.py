@@ -261,12 +261,12 @@ class Wechat:
                 parsedMsg['msgId'] = msg['MsgId']
                 parsedMsg['imgHeight'] = msg['ImgHeight']
                 parsedMsg['imgWidth'] = msg['ImgWidth']
-                parsedMsg['imgUrl'] = self.__getImgUrl(msg['MsgId'])
+                parsedMsg['downloadFunc'] = self.__imgDownloadFunc
             elif msgType == 34: # voice
                 parsedMsg['msgType'] = 'VOICE'
                 parsedMsg['msgId'] = msg['MsgId']
                 parsedMsg['voiceLength'] = msg['VoiceLength']
-                parsedMsg['voiceUrl'] = self.__getVoiceUrl(msg['MsgId'])
+                parsedMsg['downloadFunc'] = self.__voiceDownloadFunc
             elif msgType == 42: # card
                 parsedMsg['msgType'] = 'CARD'
                 parsedMsg['msgId'] = msg['MsgId']
@@ -295,7 +295,7 @@ class Wechat:
                 parsedMsg['playLength'] = msg['PlayLength']
                 parsedMsg['imgHeight'] = msg['ImgHeight']
                 parsedMsg['imgWidth'] = msg['ImgWidth']
-                parsedMsg['videoUrl'] = self.__getVideoUrl(msg['MsgId'])
+                parsedMsg['downloadFunc'] = self.__videoDownloadFunc
             elif msgType == 47: # animation
                 parsedMsg['msgType'] = 'ANIMATION'
                 parsedMsg['msgId'] = msg['MsgId']
@@ -309,6 +309,7 @@ class Wechat:
                     parsedMsg['fileName'] = msg['FileName']
                     parsedMsg['fileSize'] = msg['FileSize']
                     parsedMsg['mediaId'] = msg['MediaId']
+                    parsedMsg['downloadFunc'] = self.__fileDownloadFunc
         elif msg['FromUserName'][:2] == "@@":
             # TODO: process group msg
             pass
@@ -333,20 +334,40 @@ class Wechat:
                 return True
         return False
 
-    def __getImgUrl(self, msgId):
+    def __imgDownloadFunc(self, msgId):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(msgId, self.skey)
-        return url
+        r = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
+        fileName = 'img_' + msgId + '.jpg'
+        with open(fileName, 'wb') as f:
+            f.write(r.content)
 
-    def __getVoiceUrl(self, msgId):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgid=%s&skey=%s'%(msgId, self.skey)
+    def __voiceDownloadFunc(self, msgId):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgID=%s&skey=%s'%(msgId, self.skey)
+        r = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
+        fileName = 'voice_' + msgId + '.mp3'
+        with open(fileName, 'wb') as f:
+            f.write(r.content)
+
+    def __videoDownloadFunc(self, msgId):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgID=%s&skey=%s'%(msgId, self.skey)
+        headers = {
+            'Range': 'bytes=0-',
+            'User-Agent' : self.headers['User-Agent']
+        }
+        r = self.session.get(url, stream=True, headers=headers, proxies=self.proxies)
+        fileName = 'video_' + msgId + '.mp4'
+        with open(fileName, 'wb') as f:
+            f.write(r.content)
+
+    def __fileDownloadFunc(self, msgId):
+        # TODO: download file
         pass
-
-    def __getVideoUrl(self, msgId):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgid=%s&skey=%s'%(msgId, self.skey)
-        return url
 
     def processMsg(self, msg):
         print(msg)
+        if msg.__contains__('msgType'):
+            if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO"]:
+                msg['downloadFunc'](msg['msgId'])
         pass
 
     def run(self):

@@ -7,6 +7,7 @@ import qrcode
 import random
 import xml.dom.minidom
 import json
+import html
 
 class Wechat:
 
@@ -240,22 +241,14 @@ class Wechat:
                     parsedMsg['msgType'] = 'TEXT'
                     parsedMsg['content'] = msg['Content']
                 elif subMsgType == 48: # position
-                    oriContent = msg['OriContent']
                     parsedMsg['msgType'] = 'POSITION'
-                    parsedMsg['position'] = msg['OriContent'] # delete this IE after TODO parsed
-                    # TODO: parse IEs
-                    # nodes = xml.dom.minidom.parseString(oriContent).documentElement.childNodes
-                    # for node in nodes:
-                    #     if node.nodeName == 'x':
-                    #         parsedMsg['x'] = node.childNodes[0].data
-                    #     if node.nodeName == 'y':
-                    #         parsedMsg['y'] = node.childNodes[0].data
-                    #     if node.nodeName == 'scale':
-                    #         parsedMsg['scale'] = node.childNodes[0].data
-                    #     if node.nodeName == 'label':
-                    #         parsedMsg['label'] = node.childNodes[0].data
-                    #     if node.nodeName == 'poiname':
-                    #         parsedMsg['poiname'] = node.childNodes[0].data
+                    doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
+                    node = doc.getElementsByTagName("location")[0]
+                    parsedMsg['x'] = node.getAttribute("x")
+                    parsedMsg['y'] = node.getAttribute("y")
+                    parsedMsg['scale'] = node.getAttribute("scale")
+                    parsedMsg['label'] = node.getAttribute("label")
+                    parsedMsg['poiname'] = node.getAttribute("poiname")
             elif msgType == 3: # image
                 parsedMsg['msgType'] = 'IMAGE'
                 parsedMsg['msgId'] = msg['MsgId']
@@ -270,25 +263,16 @@ class Wechat:
             elif msgType == 42: # card
                 parsedMsg['msgType'] = 'CARD'
                 parsedMsg['msgId'] = msg['MsgId']
-                content = msg['Content']
-                parsedMsg['content'] = msg['Content'] # delete this IE after TODO parsed
-                # TODO: parse IEs
-                # nodes = xml.dom.minidom.parseString(content).documentElement.childNodes
-                # for node in nodes:
-                #     if node.nodeName == 'username':
-                #         parsedMsg['username'] = node.childNodes[0].data
-                #     if node.nodeName == 'nickname':
-                #         parsedMsg['nickname'] = node.childNodes[0].data
-                #     if node.nodeName == 'alias':
-                #         parsedMsg['alias'] = node.childNodes[0].data
-                #     if node.nodeName == 'province':
-                #         parsedMsg['province'] = node.childNodes[0].data
-                #     if node.nodeName == 'city':
-                #         parsedMsg['city'] = node.childNodes[0].data
-                #     if node.nodeName == 'sex':
-                #         parsedMsg['sex'] = node.childNodes[0].data
-                #     if node.nodeName == 'regionCode':
-                #         parsedMsg['regionCode'] = node.childNodes[0].data
+                content = html.unescape(msg['Content'])
+                content = content.replace('<br/>', '\n')
+                doc = xml.dom.minidom.parseString(content).documentElement
+                parsedMsg['username'] = doc.getAttribute("username")
+                parsedMsg['nickname'] = doc.getAttribute("nickname")
+                parsedMsg['alias'] = doc.getAttribute("alias")
+                parsedMsg['province'] = doc.getAttribute("province")
+                parsedMsg['city'] = doc.getAttribute("city")
+                parsedMsg['sex'] = doc.getAttribute("sex")
+                parsedMsg['regionCode'] = doc.getAttribute("regionCode")
             elif msgType == 43: # video
                 parsedMsg['msgType'] = 'VIDEO'
                 parsedMsg['msgId'] = msg['MsgId']

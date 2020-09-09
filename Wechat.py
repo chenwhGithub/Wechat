@@ -11,11 +11,9 @@ import html
 
 class Wechat:
 
-    def __init__(self, porxyUsed=True):
+    def __init__(self, proxies={}):
         self.headers = { 'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36' }
-        self.proxies = {}
-        if porxyUsed:
-            self.proxies = { 'http':'http://10.144.1.10:8080', 'https':'https://10.144.1.10:8080' }
+        self.proxies = proxies
         self.session = requests.Session()
         self.uuid = ''
         self.isLogin = False

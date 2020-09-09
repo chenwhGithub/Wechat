@@ -53,7 +53,7 @@ class Wechat:
         r = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
         regx = r'window.QRLogin.code = (\d+); window.QRLogin.uuid = "(\S+?)";'
         data = re.search(regx, r.text)
-        if data and data.group(1) == '200': # OK
+        if data.group(1) == '200': # OK
             self.uuid = data.group(2)
             print("uuid: %s" %self.uuid)
 
@@ -88,6 +88,8 @@ class Wechat:
                 self.redirect_uri = param.group(1)
                 self.isLogin = True
                 print("login success")
+            else:
+                pass
 
     def __getLoginParams(self):
         url = self.redirect_uri + '&fun=new&version=v2'
@@ -109,6 +111,9 @@ class Wechat:
             elif node.nodeName == 'pass_ticket':
                 self.pass_ticket = node.childNodes[0].data
                 print("pass_ticket: %s" %self.pass_ticket)
+            else:
+                # isgrayscale, not needed
+                pass
         self.base_request['DeviceID'] = self.device_id
         print("base_request: %s" %self.base_request)
 
@@ -176,12 +181,13 @@ class Wechat:
             member_list.extend(dic['MemberList'])
 
         for member in member_list:
-            if member['VerifyFlag'] & 8 != 0:
-                self.public_list.append(member)
-            elif member['UserName'].find('@@') != -1:
-                self.group_list.append(member)
+            if member['UserName'].find('@@') != -1:
+                self.group_list.append(member)   # not include detail members info
+            elif member['VerifyFlag'] & 8 != 0:
+                self.public_list.append(member)  # include weixin,weixinzhifu
             else:
-                self.contact_list.append(member)
+                self.contact_list.append(member) # include filehelper
+
         print("len public_list %d:" %len(self.public_list))
         print("len group_list %d:" %len(self.group_list))
         print("len contact_list %d:" %len(self.contact_list))
@@ -232,15 +238,22 @@ class Wechat:
 
     def __parseMsg(self, msg):
         parsedMsg = {}
-        parsedMsg['fromUserName'] = msg['FromUserName']
-        if msg['ToUserName'] == 'filehelper':
+        if self.__isFromGroup(msg['FromUserName']):
+            # TODO: parse group msg
+            pass
+        elif self.__isFromPublic(msg['FromUserName']):
+            # TODO: parse public msg
+            pass
+        else: # parse contact msg
             msgType = msg['MsgType']
             if msgType == 1: # text/link/position
                 subMsgType = msg['SubMsgType']
                 if subMsgType == 0: # text/link
+                    parsedMsg['fromUserName'] = msg['FromUserName']
                     parsedMsg['msgType'] = 'TEXT'
                     parsedMsg['content'] = msg['Content']
                 elif subMsgType == 48: # position
+                    parsedMsg['fromUserName'] = msg['FromUserName']
                     parsedMsg['msgType'] = 'POSITION'
                     doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
                     node = doc.getElementsByTagName("location")[0]
@@ -249,18 +262,23 @@ class Wechat:
                     parsedMsg['scale'] = node.getAttribute("scale")
                     parsedMsg['label'] = node.getAttribute("label")
                     parsedMsg['poiname'] = node.getAttribute("poiname")
+                else:
+                    pass
             elif msgType == 3: # image
+                parsedMsg['fromUserName'] = msg['FromUserName']
                 parsedMsg['msgType'] = 'IMAGE'
                 parsedMsg['msgId'] = msg['MsgId']
                 parsedMsg['imgHeight'] = msg['ImgHeight']
                 parsedMsg['imgWidth'] = msg['ImgWidth']
                 parsedMsg['downloadFunc'] = self.__imgDownloadFunc
             elif msgType == 34: # voice
+                parsedMsg['fromUserName'] = msg['FromUserName']
                 parsedMsg['msgType'] = 'VOICE'
                 parsedMsg['msgId'] = msg['MsgId']
                 parsedMsg['voiceLength'] = msg['VoiceLength']
                 parsedMsg['downloadFunc'] = self.__voiceDownloadFunc
             elif msgType == 42: # card
+                parsedMsg['fromUserName'] = msg['FromUserName']
                 parsedMsg['msgType'] = 'CARD'
                 parsedMsg['msgId'] = msg['MsgId']
                 content = html.unescape(msg['Content'])
@@ -274,6 +292,7 @@ class Wechat:
                 parsedMsg['sex'] = doc.getAttribute("sex")
                 parsedMsg['regionCode'] = doc.getAttribute("regionCode")
             elif msgType == 43: # video
+                parsedMsg['fromUserName'] = msg['FromUserName']
                 parsedMsg['msgType'] = 'VIDEO'
                 parsedMsg['msgId'] = msg['MsgId']
                 parsedMsg['playLength'] = msg['PlayLength']
@@ -281,40 +300,33 @@ class Wechat:
                 parsedMsg['imgWidth'] = msg['ImgWidth']
                 parsedMsg['downloadFunc'] = self.__videoDownloadFunc
             elif msgType == 47: # animation
+                parsedMsg['fromUserName'] = msg['FromUserName']
                 parsedMsg['msgType'] = 'ANIMATION'
                 parsedMsg['msgId'] = msg['MsgId']
                 parsedMsg['imgHeight'] = msg['ImgHeight']
                 parsedMsg['imgWidth'] = msg['ImgWidth']
             elif msgType == 49: # attachment
-                parsedMsg['msgType'] = 'FILE'
-                parsedMsg['msgId'] = msg['MsgId']
                 appMsgType = msg['AppMsgType']
                 if appMsgType == 6: # file
+                    parsedMsg['fromUserName'] = msg['FromUserName']
+                    parsedMsg['msgType'] = 'FILE'
+                    parsedMsg['msgId'] = msg['MsgId']
                     parsedMsg['fileName'] = msg['FileName']
                     parsedMsg['fileSize'] = msg['FileSize']
                     parsedMsg['mediaId'] = msg['MediaId']
                     parsedMsg['downloadFunc'] = self.__fileDownloadFunc
-        elif msg['FromUserName'][:2] == "@@":
-            # TODO: process group msg
-            pass
-        elif self.__isPublic(msg['FromUserName']):
-            # TODO: process public msg
-            pass
-        elif self.__isContact(msg['FromUserName']):
-            # TODO: same with filehelper
-            pass
-
+                else:
+                    pass
+            else:
+                pass
         return parsedMsg
 
-    def __isPublic(self, userName):
+    def __isFromGroup(self, userName):
+        return userName[:2] == "@@"
+
+    def __isFromPublic(self, userName):
         for public in self.public_list:
             if userName == public['UserName']:
-                return True
-        return False
-
-    def __isContact(self, userName):
-        for contact in self.contact_list:
-            if userName == contact['UserName']:
                 return True
         return False
 
@@ -349,9 +361,6 @@ class Wechat:
 
     def processMsg(self, msg):
         print(msg)
-        if msg.__contains__('msgType'):
-            if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO"]:
-                msg['downloadFunc'](msg['msgId'])
         pass
 
     def run(self):
@@ -366,10 +375,19 @@ class Wechat:
             retcode, selector = self.__syncCheck()
             if retcode == '1101':
                 self.isLogin = False
-            if retcode == '0' and selector == '2':
-                msgList = self.__webwxSync()
-                for msg in msgList:
-                    parsedMsg = self.__parseMsg(msg)
-                    self.processMsg(parsedMsg)
+                break
+            elif retcode == '0':
+                if selector == '2':
+                    msgList = self.__webwxSync()
+                    for msg in msgList:
+                        parsedMsg = self.__parseMsg(msg)
+                        if parsedMsg:
+                            self.processMsg(parsedMsg)
+                        else:
+                            print("unsupported msg")
+                else:
+                    pass
+            else:
+                pass
             time.sleep(3)
         print("logout")

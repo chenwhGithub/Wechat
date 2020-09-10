@@ -318,7 +318,6 @@ class Wechat:
             pass
         return parsedMsg
 
-    # replace with custom function via registerProcessMsgFunc
     def __processMsg(self, msg):
         pass
 
@@ -360,6 +359,7 @@ class Wechat:
         # TODO: download file
         pass
 
+    # replace __processMsg with custom function
     def registerProcessMsgFunc(self, func):
         Wechat.__processMsg = func
 

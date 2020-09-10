@@ -236,88 +236,91 @@ class Wechat:
 
     def __parseMsg(self, msg):
         parsedMsg = {}
+        parsedMsg['fromUserName'] = msg['FromUserName']
+        # TODO: get NickName/RemarkName via msg['FromUserName']
+        parsedMsg['fromUserNickName'] = ""
+        parsedMsg['fromUserRemarkName'] = ""
+        parsedMsg['fromUserType'] = 'UNSUPPORTED'
+        parsedMsg['msgType'] = 'UNSUPPORTED'
+
         if self.__isFromGroup(msg['FromUserName']):
-            # TODO: parse group msg
-            pass
+            parsedMsg['fromUserType'] = 'GROUP'
         elif self.__isFromPublic(msg['FromUserName']):
-            # TODO: parse public msg
-            pass
-        else: # parse contact msg
-            msgType = msg['MsgType']
-            if msgType == 1: # text/link/position
-                subMsgType = msg['SubMsgType']
-                if subMsgType == 0: # text/link
-                    parsedMsg['fromUserName'] = msg['FromUserName']
-                    parsedMsg['msgType'] = 'TEXT'
-                    parsedMsg['content'] = msg['Content']
-                elif subMsgType == 48: # position
-                    parsedMsg['fromUserName'] = msg['FromUserName']
-                    parsedMsg['msgType'] = 'POSITION'
-                    doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
-                    node = doc.getElementsByTagName("location")[0]
-                    parsedMsg['x'] = node.getAttribute("x")
-                    parsedMsg['y'] = node.getAttribute("y")
-                    parsedMsg['scale'] = node.getAttribute("scale")
-                    parsedMsg['label'] = node.getAttribute("label")
-                    parsedMsg['poiname'] = node.getAttribute("poiname")
-                else:
-                    pass
-            elif msgType == 3: # image
-                parsedMsg['fromUserName'] = msg['FromUserName']
-                parsedMsg['msgType'] = 'IMAGE'
-                parsedMsg['msgId'] = msg['MsgId']
-                parsedMsg['imgHeight'] = msg['ImgHeight']
-                parsedMsg['imgWidth'] = msg['ImgWidth']
-                parsedMsg['downloadFunc'] = self.__imgDownloadFunc
-            elif msgType == 34: # voice
-                parsedMsg['fromUserName'] = msg['FromUserName']
-                parsedMsg['msgType'] = 'VOICE'
-                parsedMsg['msgId'] = msg['MsgId']
-                parsedMsg['voiceLength'] = msg['VoiceLength']
-                parsedMsg['downloadFunc'] = self.__voiceDownloadFunc
-            elif msgType == 42: # card
-                parsedMsg['fromUserName'] = msg['FromUserName']
-                parsedMsg['msgType'] = 'CARD'
-                parsedMsg['msgId'] = msg['MsgId']
-                content = html.unescape(msg['Content'])
-                content = content.replace('<br/>', '\n')
-                doc = xml.dom.minidom.parseString(content).documentElement
-                parsedMsg['username'] = doc.getAttribute("username")
-                parsedMsg['nickname'] = doc.getAttribute("nickname")
-                parsedMsg['alias'] = doc.getAttribute("alias")
-                parsedMsg['province'] = doc.getAttribute("province")
-                parsedMsg['city'] = doc.getAttribute("city")
-                parsedMsg['sex'] = doc.getAttribute("sex")
-                parsedMsg['regionCode'] = doc.getAttribute("regionCode")
-            elif msgType == 43: # video
-                parsedMsg['fromUserName'] = msg['FromUserName']
-                parsedMsg['msgType'] = 'VIDEO'
-                parsedMsg['msgId'] = msg['MsgId']
-                parsedMsg['playLength'] = msg['PlayLength']
-                parsedMsg['imgHeight'] = msg['ImgHeight']
-                parsedMsg['imgWidth'] = msg['ImgWidth']
-                parsedMsg['downloadFunc'] = self.__videoDownloadFunc
-            elif msgType == 47: # animation
-                parsedMsg['fromUserName'] = msg['FromUserName']
-                parsedMsg['msgType'] = 'ANIMATION'
-                parsedMsg['msgId'] = msg['MsgId']
-                parsedMsg['imgHeight'] = msg['ImgHeight']
-                parsedMsg['imgWidth'] = msg['ImgWidth']
-            elif msgType == 49: # attachment
-                appMsgType = msg['AppMsgType']
-                if appMsgType == 6: # file
-                    parsedMsg['fromUserName'] = msg['FromUserName']
-                    parsedMsg['msgType'] = 'FILE'
-                    parsedMsg['msgId'] = msg['MsgId']
-                    parsedMsg['fileName'] = msg['FileName']
-                    parsedMsg['fileSize'] = msg['FileSize']
-                    parsedMsg['mediaId'] = msg['MediaId']
-                    parsedMsg['downloadFunc'] = self.__fileDownloadFunc
-                else:
-                    pass
+            parsedMsg['fromUserType'] = 'PUBLIC'
+        else:
+            parsedMsg['fromUserType'] = 'CONTACT'
+
+        msgType = msg['MsgType']
+        if msgType == 1: # text/link/position
+            subMsgType = msg['SubMsgType']
+            if subMsgType == 0: # text/link
+                parsedMsg['msgType'] = 'TEXT'
+                parsedMsg['content'] = msg['Content']
+            elif subMsgType == 48: # position
+                parsedMsg['msgType'] = 'POSITION'
+                doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
+                node = doc.getElementsByTagName("location")[0]
+                parsedMsg['x'] = node.getAttribute("x")
+                parsedMsg['y'] = node.getAttribute("y")
+                parsedMsg['scale'] = node.getAttribute("scale")
+                parsedMsg['label'] = node.getAttribute("label")
+                parsedMsg['poiname'] = node.getAttribute("poiname")
             else:
                 pass
+        elif msgType == 3: # image
+            parsedMsg['msgType'] = 'IMAGE'
+            parsedMsg['msgId'] = msg['MsgId']
+            parsedMsg['imgHeight'] = msg['ImgHeight']
+            parsedMsg['imgWidth'] = msg['ImgWidth']
+            parsedMsg['downloadFunc'] = self.__imgDownloadFunc
+        elif msgType == 34: # voice
+            parsedMsg['msgType'] = 'VOICE'
+            parsedMsg['msgId'] = msg['MsgId']
+            parsedMsg['voiceLength'] = msg['VoiceLength']
+            parsedMsg['downloadFunc'] = self.__voiceDownloadFunc
+        elif msgType == 42: # card
+            parsedMsg['msgType'] = 'CARD'
+            parsedMsg['msgId'] = msg['MsgId']
+            content = html.unescape(msg['Content'])
+            content = content.replace('<br/>', '\n')
+            doc = xml.dom.minidom.parseString(content).documentElement
+            parsedMsg['username'] = doc.getAttribute("username")
+            parsedMsg['nickname'] = doc.getAttribute("nickname")
+            parsedMsg['alias'] = doc.getAttribute("alias")
+            parsedMsg['province'] = doc.getAttribute("province")
+            parsedMsg['city'] = doc.getAttribute("city")
+            parsedMsg['sex'] = doc.getAttribute("sex")
+            parsedMsg['regionCode'] = doc.getAttribute("regionCode")
+        elif msgType == 43: # video
+            parsedMsg['msgType'] = 'VIDEO'
+            parsedMsg['msgId'] = msg['MsgId']
+            parsedMsg['playLength'] = msg['PlayLength']
+            parsedMsg['imgHeight'] = msg['ImgHeight']
+            parsedMsg['imgWidth'] = msg['ImgWidth']
+            parsedMsg['downloadFunc'] = self.__videoDownloadFunc
+        elif msgType == 47: # animation
+            parsedMsg['msgType'] = 'ANIMATION'
+            parsedMsg['msgId'] = msg['MsgId']
+            parsedMsg['imgHeight'] = msg['ImgHeight']
+            parsedMsg['imgWidth'] = msg['ImgWidth']
+        elif msgType == 49: # attachment
+            appMsgType = msg['AppMsgType']
+            if appMsgType == 6: # file
+                parsedMsg['msgType'] = 'FILE'
+                parsedMsg['msgId'] = msg['MsgId']
+                parsedMsg['fileName'] = msg['FileName']
+                parsedMsg['fileSize'] = msg['FileSize']
+                parsedMsg['mediaId'] = msg['MediaId']
+                parsedMsg['downloadFunc'] = self.__fileDownloadFunc
+            else:
+                pass
+        else:
+            pass
         return parsedMsg
+
+    # replace with custom function via registerProcessMsgFunc
+    def __processMsg(self, msg):
+        pass
 
     def __isFromGroup(self, userName):
         return userName[:2] == "@@"
@@ -357,11 +360,10 @@ class Wechat:
         # TODO: download file
         pass
 
-    def processMsg(self, msg):
-        print(msg)
-        pass
+    def registerProcessMsgFunc(self, func):
+        Wechat.__processMsg = func
 
-    def run(self):
+    def login(self):
         self.__getUuid()
         self.__genQRCode()
         self.__login()
@@ -369,22 +371,21 @@ class Wechat:
         self.__initinate()
         self.__statusNotify()
         self.__getContact()
+
+    def run(self):
         while (self.isLogin):
             retcode, selector = self.__syncCheck()
-            if retcode == '1101':
-                self.isLogin = False
-                break
-            elif retcode == '0':
+            if retcode == '0':
                 if selector == '2':
                     msgList = self.__webwxSync()
                     for msg in msgList:
                         parsedMsg = self.__parseMsg(msg)
-                        if parsedMsg:
-                            self.processMsg(parsedMsg)
-                        else:
-                            print("unsupported msg")
+                        self.__processMsg(parsedMsg)
                 else:
                     pass
+            elif retcode == '1101':
+                self.isLogin = False
+                break
             else:
                 pass
             time.sleep(3)

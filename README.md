@@ -38,9 +38,7 @@ msg 是字典类型，消息类型不同所包含的字段也不同，有些字�
 
     'fromUserName': 字符串类型，表示发送方的身份，登陆后由系统分配
 
-    'fromUserNickName': 字符串类型，表示发送方的昵称，暂未实现
-
-    'fromUserRemarkName': 字符串类型，表示发送方的备注名，暂未实现
+    'fromUserNickName': 字符串类型，表示发送方的昵称
 
     'fromUserType': 字符串类型，取值 "GROUP/PUBLIC/CONTACT", 表示消息来源于群组/公众号/联系人
 
@@ -49,6 +47,11 @@ msg 是字典类型，消息类型不同所包含的字段也不同，有些字�
 ### 可选字段：
 
 ```python
+fromUserType = CONTACT
+
+    'fromUserRemarkName': 字符串类型，表示发送方的备注名
+
+
 msgType = TEXT:
 
     'content': 字符串类型，表示接收到的消息内容
@@ -167,7 +170,6 @@ weChat = Wechat.Wechat(proxies=proxies)
 
 1. 增加图片显示登陆二维码方式
 2. 保存登陆缓存信息，避免每次都要扫码登录
-3. 解析消息发送方的昵称和备注名
 4. 解析群组消息是否包含@信息
 5. 增加文件下载功能
 6. 增加发送消息功能

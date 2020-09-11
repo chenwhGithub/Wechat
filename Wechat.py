@@ -26,10 +26,10 @@ class Wechat:
         self.base_request = {}
         self.sync_key = {}
         self.sync_key_str = ''
-        self.user = {}
-        self.contact_list = []
-        self.public_list = []
-        self.group_list = []
+        self.account_me = {}
+        self.account_contacts = {}
+        self.account_publics = {}
+        self.account_groups = {}
 
     def __getTimeStamp(self):
         t = int(time.time() * 1000)
@@ -131,10 +131,10 @@ class Wechat:
         dic = json.loads(r.text)
         self.sync_key = dic['SyncKey']
         self.sync_key_str = '|'.join([str(keyVal['Key']) + '_' + str(keyVal['Val']) for keyVal in self.sync_key['List']])
-        self.user = dic['User']
+        self.account_me = dic['User']
         print("sync_key: %s" %self.sync_key)
         print("sync_key_str: %s" %self.sync_key_str)
-        print("user: %s" %self.user)
+        print("account_me: %s" %self.account_me)
 
     def __statusNotify(self):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify'
@@ -180,15 +180,15 @@ class Wechat:
 
         for member in member_list:
             if member['UserName'].find('@@') != -1:
-                self.group_list.append(member)   # not include detail members info
+                self.account_groups[member['UserName']] = member   # not include detail members info
             elif member['VerifyFlag'] & 8 != 0:
-                self.public_list.append(member)  # include weixin,weixinzhifu
+                self.account_publics[member['UserName']] = member  # include weixin,weixinzhifu
             else:
-                self.contact_list.append(member) # include filehelper
+                self.account_contacts[member['UserName']] = member # include filehelper
 
-        print("len public_list %d:" %len(self.public_list))
-        print("len group_list %d:" %len(self.group_list))
-        print("len contact_list %d:" %len(self.contact_list))
+        print("len account_publics  %d:" %len(self.account_publics))
+        print("len account_groups   %d:" %len(self.account_groups))
+        print("len account_contacts %d:" %len(self.account_contacts))
 
     def __syncCheck(self):
         url = 'https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck'
@@ -237,18 +237,20 @@ class Wechat:
     def __parseMsg(self, msg):
         parsedMsg = {}
         parsedMsg['fromUserName'] = msg['FromUserName']
-        # TODO: get NickName/RemarkName via msg['FromUserName']
-        parsedMsg['fromUserNickName'] = ""
-        parsedMsg['fromUserRemarkName'] = ""
+        parsedMsg['fromUserNickName'] = ''
         parsedMsg['fromUserType'] = 'UNSUPPORTED'
         parsedMsg['msgType'] = 'UNSUPPORTED'
 
-        if self.__isFromGroup(msg['FromUserName']):
+        if self.account_groups.has_key(msg['FromUserName']):
             parsedMsg['fromUserType'] = 'GROUP'
-        elif self.__isFromPublic(msg['FromUserName']):
+            parsedMsg['fromUserNickName'] = self.account_groups[msg['FromUserName']]['NickName']
+        elif self.account_publics.has_key(msg['FromUserName']):
             parsedMsg['fromUserType'] = 'PUBLIC'
+            parsedMsg['fromUserNickName'] = self.account_publics[msg['FromUserName']]['NickName']
         else:
             parsedMsg['fromUserType'] = 'CONTACT'
+            parsedMsg['fromUserNickName'] = self.account_contacts[msg['FromUserName']]['NickName']
+            parsedMsg['fromUserRemarkName'] = self.account_contacts[msg['FromUserName']]['RemarkName']
 
         msgType = msg['MsgType']
         if msgType == 1: # text/link/position
@@ -318,17 +320,9 @@ class Wechat:
             pass
         return parsedMsg
 
+    # default msg process, do nothing
     def __processMsg(self, msg):
         pass
-
-    def __isFromGroup(self, userName):
-        return userName[:2] == "@@"
-
-    def __isFromPublic(self, userName):
-        for public in self.public_list:
-            if userName == public['UserName']:
-                return True
-        return False
 
     def __imgDownloadFunc(self, msgId):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(msgId, self.skey)

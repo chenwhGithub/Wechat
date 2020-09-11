@@ -2,7 +2,7 @@
 
 Wechat 是一个开源的微信客户端实现接口，使用 python 完成微信的登录和消息收发功能
 
-当前支持的功能相对简单，下面有详细介绍，后续会继续添加功能并优化实现
+当前支持的功能相对简单，后续会持续添加功能并优化
 
 ## 基本使用示例
 
@@ -13,13 +13,14 @@ weChat = Wechat.Wechat()
 weChat.login()
 weChat.run()
 ```
-该示例实现微信二维码扫码登录，然后处理接收的消息，默认不做任何处理，可以通过自定义函数替换默认处理
+该示例实现最基础功能：微信二维码扫码登录，接收消息，默认接收的消息不做任何处理
 
 ## 自定义消息处理
 
 ```python
 import Wechat
 
+# 自定义消息处理函数
 def processMsg(self, msg):
     print(msg)
 
@@ -29,11 +30,11 @@ weChat.login()
 weChat.run()
 ```
 
-自定义一个消息处理函数，调用 registerProcessMsgFunc 函数来替换默认处理函数
+首先自定义消息处理函数，然后调用 registerProcessMsgFunc 替换默认处理函数
 
-msg 是个字典类型，有些字段是必有的，有些是可有的，不同的消息类型所包含的字段不同：
+msg 是字典类型，消息类型不同所包含的字段也不同，有些字段是必有的，有些是可选的
 
-必有字段：
+### 必有字段：
 
     'fromUserName': 字符串类型，表示发送方的身份，登陆后由系统分配
 
@@ -45,8 +46,9 @@ msg 是个字典类型，有些字段是必有的，有些是可有的，不同�
 
     'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/不支持
 
-可有字段：
+### 可选字段：
 
+```python
 msgType = TEXT:
 
     'content': 字符串类型，表示接收到的消息内容
@@ -75,7 +77,7 @@ msgType = IMAGE:
 
     'downloadFunc': 函数类型，表示下载图片的函数，有一个输入参数 msgId
 
-msg['downloadFunc'](msg['msgId']) 将下载图片到当前目录，保存文件名为 img_(msgId).jpg
+    调用 msg['downloadFunc'](msg['msgId'])，将下载图片到当前目录，保存文件名为 img_(msgId).jpg
 
 
 msgType = VOICE:
@@ -86,7 +88,7 @@ msgType = VOICE:
 
     'downloadFunc': 函数类型，表示下载语音的函数，有一个输入参数 msgId
 
-msg['downloadFunc'](msg['msgId'])，将下载语音到当前目录，保存文件名为 voice_xxx.mp3
+    调用 msg['downloadFunc'](msg['msgId'])，将下载语音到当前目录，保存文件名为 voice_xxx.mp3
 
 
 msgType = VIDEO:
@@ -101,7 +103,7 @@ msgType = VIDEO:
 
     'downloadFunc': 函数类型，表示下载视频的函数，有一个输入参数 msgId
 
-msg['downloadFunc'](msg['msgId']) 将下载视频到当前目录，保存文件名为 video_(msgId).mp4
+    调用 msg['downloadFunc'](msg['msgId'])，将下载视频到当前目录，保存文件名为 video_(msgId).mp4
 
 
 msgType = CARD:
@@ -147,8 +149,8 @@ msgType = FILE:
 
 msgType = UNSUPPORTED:
 
-    没有可有字段，只有上述的必有字段
-
+    没有可选字段，只有上述的必有字段
+```
 
 ## 进阶应用
 
@@ -160,3 +162,13 @@ msgType = UNSUPPORTED:
 proxies = { 'http':'http://ip:port', 'https':'https://ip:port' }
 weChat = Wechat.Wechat(proxies=proxies)
 ```
+
+## 待实现功能
+
+1. 增加图片显示登陆二维码方式
+2. 保存登陆缓存信息，避免每次都要扫码登录
+3. 解析消息发送方的昵称和备注名
+4. 解析群组消息是否包含@信息
+5. 增加文件下载功能
+6. 增加发送消息功能
+7. 增加系统异常处理

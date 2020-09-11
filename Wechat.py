@@ -28,7 +28,7 @@ class Wechat:
         self.sync_key_str = ''
         self.account_me = {}
         self.account_contacts = {}
-        self.account_publics = {}
+        self.account_subscriptions = {}
         self.account_groups = {}
 
     def __getTimeStamp(self):
@@ -182,13 +182,13 @@ class Wechat:
             if member['UserName'].find('@@') != -1:
                 self.account_groups[member['UserName']] = member   # not include detail members info
             elif member['VerifyFlag'] & 8 != 0:
-                self.account_publics[member['UserName']] = member  # include weixin,weixinzhifu
+                self.account_subscriptions[member['UserName']] = member  # include weixin,weixinzhifu
             else:
                 self.account_contacts[member['UserName']] = member # include filehelper
 
-        print("len account_publics  %d:" %len(self.account_publics))
-        print("len account_groups   %d:" %len(self.account_groups))
-        print("len account_contacts %d:" %len(self.account_contacts))
+        print("len account_subscriptions  %d:" %len(self.account_subscriptions))
+        print("len account_groups         %d:" %len(self.account_groups))
+        print("len account_contacts       %d:" %len(self.account_contacts))
 
     def __syncCheck(self):
         url = 'https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck'
@@ -236,24 +236,23 @@ class Wechat:
 
     def __parseMsg(self, msg):
         parsedMsg = {}
-        parsedMsg['fromUserName'] = msg['FromUserName']
-        parsedMsg['fromUserNickName'] = ''
-        parsedMsg['fromUserType'] = 'UNSUPPORTED'
+        parsedMsg['senderType'] = 'UNSUPPORTED'
+        parsedMsg['senderName'] = msg['FromUserName']
         parsedMsg['msgType'] = 'UNSUPPORTED'
 
         if self.account_groups.__contains__(msg['FromUserName']):
-            parsedMsg['fromUserType'] = 'GROUP'
-            parsedMsg['fromUserNickName'] = self.account_groups[msg['FromUserName']]['NickName']
-        elif self.account_publics.__contains__(msg['FromUserName']):
-            parsedMsg['fromUserType'] = 'PUBLIC'
-            parsedMsg['fromUserNickName'] = self.account_publics[msg['FromUserName']]['NickName']
+            parsedMsg['senderType'] = 'GROUP'
+            parsedMsg['groupNickName'] = self.account_groups[msg['FromUserName']]['NickName']
+        elif self.account_subscriptions.__contains__(msg['FromUserName']):
+            parsedMsg['senderType'] = 'SUBSCRIPTION'
+            parsedMsg['subscriptionNickName'] = self.account_subscriptions[msg['FromUserName']]['NickName']
         elif self.account_contacts.__contains__(msg['FromUserName']):
-            parsedMsg['fromUserType'] = 'CONTACT'
-            parsedMsg['fromUserNickName'] = self.account_contacts[msg['FromUserName']]['NickName']
-            parsedMsg['fromUserRemarkName'] = self.account_contacts[msg['FromUserName']]['RemarkName']
-        elif msg['FromUserName'] == self.account_me['UserName']:
-            parsedMsg['fromUserType'] = 'MYSELF'
-            parsedMsg['fromUserNickName'] = self.account_me['NickName']
+            parsedMsg['senderType'] = 'CONTACT'
+            parsedMsg['contactNickName'] = self.account_contacts[msg['FromUserName']]['NickName']
+            parsedMsg['contactRemarkName'] = self.account_contacts[msg['FromUserName']]['RemarkName']
+        elif self.account_me['UserName'] == msg['FromUserName']:
+            parsedMsg['senderType'] = 'MYSELF'
+            parsedMsg['myNickName'] = self.account_me['NickName']
         else:
             pass
 
@@ -263,7 +262,7 @@ class Wechat:
             if subMsgType == 0: # text/link
                 parsedMsg['msgType'] = 'TEXT'
                 parsedMsg['content'] = msg['Content']
-                if parsedMsg['fromUserType'] == 'GROUP':
+                if parsedMsg['senderType'] == 'GROUP':
                     content = msg['Content']
                     parsedMsg['content'] = content[content.find('>')+1:] # delete sender username info
             elif subMsgType == 48: # position
@@ -291,7 +290,7 @@ class Wechat:
         elif msgType == 42: # card
             parsedMsg['msgType'] = 'CARD'
             parsedMsg['msgId'] = msg['MsgId']
-            content = html.unescape(msg['Content'])
+            content = html.unescape(msg['Content']) # TODO: delete emoji info
             content = content.replace('<br/>', '\n')
             doc = xml.dom.minidom.parseString(content).documentElement
             parsedMsg['username'] = doc.getAttribute("username")
@@ -380,11 +379,11 @@ class Wechat:
     def registerProcessMsgFunc(self, func):
         Wechat.__processMsg = func
 
-    def sendTextMsg(self, text, toUser):
+    def sendTextMsg(self, text, receiver):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg'
         params = { 'pass_ticket': self.pass_ticket }
         msgId = str(self.__getTimeStamp()) + str(random.random())[2:6] # len = 17
-        toUserName = self.__getUserName(toUser)
+        toUserName = self.__getUserName(receiver)
         data = {
             'BaseRequest': self.base_request,
             'Msg': {

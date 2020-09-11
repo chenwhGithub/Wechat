@@ -36,20 +36,34 @@ msg 是字典类型，消息类型不同所包含的字段也不同，有些字�
 
 ### 必有字段：
 
-    'fromUserName': 字符串类型，表示发送方的身份，登陆后由系统分配
+    'senderType': 字符串类型，取值 "GROUP/SUBSCRIPTION/CONTACT/MYSELF/UNSUPPORTED", 表示消息来源于群组/公众号/联系人/自己/不支持
 
-    'fromUserNickName': 字符串类型，表示发送方的昵称
-
-    'fromUserType': 字符串类型，取值 "GROUP/PUBLIC/CONTACT/MYSELF/UNSUPPORTED", 表示消息来源于群组/公众号/联系人/自己/不支持
+    'senderName': 字符串类型，表示发送者的身份，由系统分配，@@开头表示群组，@开头表示联系人或者公众号
 
     'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/不支持
 
 ### 可选字段：
 
 ```python
-fromUserType = CONTACT
+senderType = GROUP
 
-    'fromUserRemarkName': 字符串类型，表示发送方的备注名
+    'groupNickName': 字符串类型，表示发送者所在的群组昵称
+
+
+senderType = SUBSCRIPTION
+
+    'subscriptionNickName': 字符串类型，表示发送者公众号昵称
+
+
+senderType = CONTACT
+
+    'contactNickName':   字符串类型，表示发送者昵称
+    'contactRemarkName': 字符串类型，表示发送者备注名
+
+
+senderType = MYSELF
+
+    'myNickName': 字符串类型，表示自己的昵称
 
 
 msgType = TEXT:
@@ -152,7 +166,7 @@ msgType = FILE:
 
 msgType = UNSUPPORTED:
 
-    没有可选字段，只有上述的必有字段
+    没有可选字段
 ```
 
 ## 进阶应用
@@ -170,7 +184,8 @@ weChat = Wechat.Wechat(proxies=proxies)
 
 1. 增加图片显示登陆二维码方式
 2. 保存登陆缓存信息，避免每次都要扫码登录
+3. 解决 emoji 表情信息过滤
 4. 解析群组消息是否包含@信息
 5. 增加文件下载功能
-6. 增加发送文件消息功能
+6. 增加发送图片，视频，普通文件功能
 7. 增加系统异常处理

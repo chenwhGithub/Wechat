@@ -40,7 +40,7 @@ msg 是字典类型，消息类型不同所包含的字段也不同，有些字�
 
     'fromUserNickName': 字符串类型，表示发送方的昵称
 
-    'fromUserType': 字符串类型，取值 "GROUP/PUBLIC/CONTACT", 表示消息来源于群组/公众号/联系人
+    'fromUserType': 字符串类型，取值 "GROUP/PUBLIC/CONTACT/MYSELF/UNSUPPORTED", 表示消息来源于群组/公众号/联系人/自己/不支持
 
     'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/不支持
 
@@ -172,5 +172,5 @@ weChat = Wechat.Wechat(proxies=proxies)
 2. 保存登陆缓存信息，避免每次都要扫码登录
 4. 解析群组消息是否包含@信息
 5. 增加文件下载功能
-6. 增加发送消息功能
+6. 增加发送文件消息功能
 7. 增加系统异常处理

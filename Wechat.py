@@ -144,8 +144,8 @@ class Wechat:
             'BaseRequest'  : self.base_request,
             'ClientMsgId'  : self.__getTimeStamp(),
             'Code'         : 3,
-            'FromUserName' : self.user['UserName'],
-            'ToUserName'   : self.user['UserName']
+            'FromUserName' : self.account_me['UserName'],
+            'ToUserName'   : self.account_me['UserName']
         }
         headers = {
             'ContentType': 'application/json; charset=UTF-8',
@@ -241,16 +241,21 @@ class Wechat:
         parsedMsg['fromUserType'] = 'UNSUPPORTED'
         parsedMsg['msgType'] = 'UNSUPPORTED'
 
-        if self.account_groups.has_key(msg['FromUserName']):
+        if self.account_groups.__contains__(msg['FromUserName']):
             parsedMsg['fromUserType'] = 'GROUP'
             parsedMsg['fromUserNickName'] = self.account_groups[msg['FromUserName']]['NickName']
-        elif self.account_publics.has_key(msg['FromUserName']):
+        elif self.account_publics.__contains__(msg['FromUserName']):
             parsedMsg['fromUserType'] = 'PUBLIC'
             parsedMsg['fromUserNickName'] = self.account_publics[msg['FromUserName']]['NickName']
-        else:
+        elif self.account_contacts.__contains__(msg['FromUserName']):
             parsedMsg['fromUserType'] = 'CONTACT'
             parsedMsg['fromUserNickName'] = self.account_contacts[msg['FromUserName']]['NickName']
             parsedMsg['fromUserRemarkName'] = self.account_contacts[msg['FromUserName']]['RemarkName']
+        elif msg['FromUserName'] == self.account_me['UserName']:
+            parsedMsg['fromUserType'] = 'MYSELF'
+            parsedMsg['fromUserNickName'] = self.account_me['NickName']
+        else:
+            pass
 
         msgType = msg['MsgType']
         if msgType == 1: # text/link/position
@@ -258,7 +263,7 @@ class Wechat:
             if subMsgType == 0: # text/link
                 parsedMsg['msgType'] = 'TEXT'
                 parsedMsg['content'] = msg['Content']
-                if parsedMsg['fromUserType'] = 'GROUP':
+                if parsedMsg['fromUserType'] == 'GROUP':
                     content = msg['Content']
                     parsedMsg['content'] = content[content.find('>')+1:] # delete sender username info
             elif subMsgType == 48: # position
@@ -356,9 +361,47 @@ class Wechat:
         # TODO: download file
         pass
 
+    def __getUserName(self, name):
+        if self.account_contacts.__contains__(name): # input contact UserName
+            return name
+
+        if self.account_groups.__contains__(name): # input group UserName
+            return name
+
+        for k, v in self.account_contacts.items(): # input contact NickName/RemarkName
+            if v['NickName'] == name or v['RemarkName'] == name:
+                return v['UserName']
+
+        for k, v in self.account_groups.items(): # input group NickName
+            if v['NickName'] == name:
+                return v['UserName']
+
     # replace __processMsg with custom function
     def registerProcessMsgFunc(self, func):
         Wechat.__processMsg = func
+
+    def sendTextMsg(self, text, toUser):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg'
+        params = { 'pass_ticket': self.pass_ticket }
+        msgId = str(self.__getTimeStamp()) + str(random.random())[2:6] # len = 17
+        toUserName = self.__getUserName(toUser)
+        data = {
+            'BaseRequest': self.base_request,
+            'Msg': {
+                "ClientMsgId": msgId,
+                "Content": text,
+                "FromUserName": self.account_me['UserName'],
+                "LocalID": msgId,
+                "ToUserName": toUserName,
+                "Type": 1
+            },
+            'Scene': 0
+        }
+        headers = {
+            'ContentType': 'application/json; charset=UTF-8',
+            'User-Agent' : self.headers['User-Agent']
+        }
+        self.session.post(url, params=params, data=json.dumps(data, ensure_ascii=False).encode('utf8'), headers=headers, proxies=self.proxies)
 
     def login(self):
         self.__getUuid()

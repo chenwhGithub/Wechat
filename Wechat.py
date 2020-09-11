@@ -258,6 +258,9 @@ class Wechat:
             if subMsgType == 0: # text/link
                 parsedMsg['msgType'] = 'TEXT'
                 parsedMsg['content'] = msg['Content']
+                if parsedMsg['fromUserType'] = 'GROUP':
+                    content = msg['Content']
+                    parsedMsg['content'] = content[content.find('>')+1:] # delete sender username info
             elif subMsgType == 48: # position
                 parsedMsg['msgType'] = 'POSITION'
                 doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement

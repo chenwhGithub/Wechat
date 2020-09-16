@@ -8,11 +8,13 @@ import random
 import xml.dom.minidom
 import json
 import html
+import mimetypes
+import hashlib
 
 class Wechat:
 
-    def __init__(self, proxies={}):
-        self.headers = { 'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36' }
+    def __init__(self, proxies=None):
+        self.headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36' }
         self.proxies = proxies
         self.session = requests.Session()
         self.uuid = ''
@@ -30,6 +32,7 @@ class Wechat:
         self.account_contacts = {}
         self.account_subscriptions = {}
         self.account_groups = {}
+        self.file_index = 0
 
     def __getTimeStamp(self):
         t = int(time.time() * 1000)
@@ -66,7 +69,6 @@ class Wechat:
         tip = 1 # 0:scaned, 1:not scaned
 
         while (not self.isLogin):
-            localTime = int(time.time())
             params = {
                 'loginicon': 'true',
                 'uuid': self.uuid,
@@ -367,13 +369,13 @@ class Wechat:
         if self.account_groups.__contains__(name): # input group UserName
             return name
 
-        for k, v in self.account_contacts.items(): # input contact NickName/RemarkName
-            if v['NickName'] == name or v['RemarkName'] == name:
-                return v['UserName']
+        for value in self.account_contacts.values(): # input contact NickName/RemarkName
+            if value['NickName'] == name or value['RemarkName'] == name:
+                return value['UserName']
 
-        for k, v in self.account_groups.items(): # input group NickName
-            if v['NickName'] == name:
-                return v['UserName']
+        for value in self.account_groups.values(): # input group NickName
+            if value['NickName'] == name:
+                return value['UserName']
 
     # replace __processMsg with custom function
     def registerProcessMsgFunc(self, func):
@@ -401,6 +403,78 @@ class Wechat:
             'User-Agent' : self.headers['User-Agent']
         }
         self.session.post(url, params=params, data=json.dumps(data, ensure_ascii=False).encode('utf8'), headers=headers, proxies=self.proxies)
+
+    def __getClientMsgId(self):
+        id = str(self.__getTimeStamp()) + str(random.random())[2:6]
+        return id
+
+    def __getFileMd5(self, fileName):
+        with open(fileName, mode="rb") as f:
+            by = f.read()
+        md5 = hashlib.md5(by).hexdigest()
+        return md5
+
+    def __uploadMedia(self, fileName, mediaType, toUserName):
+        url = 'https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
+        fileLen = str(os.path.getsize(fileName))
+        fileType = mimetypes.guess_type(fileName)[0] or 'application/octet-stream'
+        files = {
+            'id': (None, 'WU_FILE_%s' % str(self.file_index)),
+            'name': (None, os.path.basename(fileName)),
+            'type': (None, fileType),
+            'lastModifiedDate': (None, '%s' % time.ctime(os.path.getmtime(fileName))),
+            'size': (None, fileLen),
+            'mediatype': (None, mediaType),
+            'uploadmediarequest': (None, json.dumps({
+                'UploadType': 2,
+                'BaseRequest': self.base_request,
+                'ClientMediaId': self.__getClientMsgId(),
+                'TotalLen': fileLen,
+                'StartPos': 0,
+                'DataLen': fileLen,
+                'MediaType': 4,
+                'FromUserName': self.account_me['UserName'],
+                'ToUserName': toUserName,
+                'FileMd5': self.__getFileMd5(fileName)
+            })),
+            'webwx_data_ticket': (None, self.session.cookies['webwx_data_ticket']),
+            'pass_ticket': (None, self.pass_ticket),
+            'filename': (os.path.basename(fileName), open(fileName, 'rb'), fileType.split('/')[1]),
+        }
+        self.file_index += 1
+        r = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
+        dic = json.loads(r.text)
+        return dic['MediaId']
+
+    def sendImgMsg(self, fileName, receiver):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg'
+        params = {
+            'fun': 'async',
+            'f': 'json',
+            'lang': 'en',
+            'pass_ticket': self.pass_ticket
+        }
+        toUserName = self.__getUserName(receiver)
+        msgId = self.__getClientMsgId()
+        mediaId = self.__uploadMedia(fileName, 'pic', toUserName)
+        data = {
+            'BaseRequest': self.base_request,
+            'Msg': {
+                'ClientMsgId': msgId,
+                'Content': '',
+                'FromUserName': self.account_me['UserName'],
+                'LocalID': msgId,
+                'MediaId': mediaId,
+                'ToUserName': toUserName,
+                'Type': 3
+            },
+            'Scene': 0
+        }
+        headers = {
+            'ContentType': 'application/json; charset=UTF-8',
+            'User-Agent' : self.headers['User-Agent']
+        }
+        self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
 
     def login(self):
         self.__getUuid()

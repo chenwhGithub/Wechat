@@ -1,24 +1,51 @@
+# -*- coding: utf-8 -*-
+
+"""
+wechat
+
+This module provides interfaces to login, send and receive weixin msg
+"""
+
 import os
-import sys
 import time
 import re
-import requests
-import qrcode
 import random
 import xml.dom.minidom
 import json
 import html
 import mimetypes
 import hashlib
+import qrcode
+import requests
 
-class Wechat:
+
+def get_timestamp():
+    stamp = int(time.time() * 1000)
+    return stamp
+
+def get_rtimestamp():
+    stamp = -int(time.time())
+    return stamp
+
+def get_msg_id():
+    msg_id = str(get_timestamp()) + str(random.random())[2:6]
+    return msg_id
+
+def get_md5(file_name):
+    with open(file_name, mode="rb") as fptr:
+        f_bytes = fptr.read()
+    md5 = hashlib.md5(f_bytes).hexdigest()
+    return md5
+
+
+class wechat:
 
     def __init__(self, proxies=None):
         self.headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36' }
         self.proxies = proxies
         self.session = requests.Session()
         self.uuid = ''
-        self.isLogin = False
+        self.is_login = False
         self.redirect_uri = ''
         self.skey = ''
         self.sid = ''
@@ -34,67 +61,57 @@ class Wechat:
         self.account_groups = {}
         self.file_index = 0
 
-    def __getTimeStamp(self):
-        t = int(time.time() * 1000)
-        return t
-
-    def __getRTimeStamp(self):
-        t = -int(time.time())
-        return t
-
-    def __getUuid(self):
+    def __get_uuid(self):
         url = 'https://login.weixin.qq.com/jslogin'
         params = {
             'appid': 'wx782c26e4c19acffb',
             'redirect_uri': 'https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage',
             'fun': 'new',
             'lang': 'en_US',
-            '_': self.__getTimeStamp()
+            '_': get_timestamp()
         }
-        r = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
+        resp = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
         regx = r'window.QRLogin.code = (\d+); window.QRLogin.uuid = "(\S+?)";'
-        data = re.search(regx, r.text)
+        data = re.search(regx, resp.text)
         if data.group(1) == '200': # OK
             self.uuid = data.group(2)
             print("uuid: %s" %self.uuid)
 
-    def __genQRCode(self):
+    def __gen_qrcode(self):
         url = 'https://login.weixin.qq.com/l/' + self.uuid
-        qr = qrcode.QRCode()
-        qr.add_data(url)
-        qr.print_ascii(invert=False)
+        code = qrcode.QRCode()
+        code.add_data(url)
+        code.print_ascii(invert=False)
 
     def __login(self):
         url = 'https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login'
         tip = 1 # 0:scaned, 1:not scaned
 
-        while (not self.isLogin):
+        while (not self.is_login):
             params = {
                 'loginicon': 'true',
                 'uuid': self.uuid,
                 'tip': tip,
-                'r': self.__getRTimeStamp(),
-                '_': self.__getTimeStamp()
+                'r': get_rtimestamp(),
+                '_': get_timestamp()
             }
-            r = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
-            data = re.search(r'window.code=(\d+)', r.text)
+            resp = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
+            data = re.search(r'window.code=(\d+)', resp.text)
             if data.group(1) == '408': # timeout
                 tip = 1
             elif data.group(1) == '201': # scaned
                 tip = 0
                 print("scan success")
             elif data.group(1) == '200': # success
-                param = re.search(r'window.redirect_uri="(\S+?)";', r.text)
+                param = re.search(r'window.redirect_uri="(\S+?)";', resp.text)
                 self.redirect_uri = param.group(1)
-                self.isLogin = True
+                self.is_login = True
                 print("login success")
-            else:
-                pass
 
-    def __getLoginParams(self):
+    def __get_params(self):
         url = self.redirect_uri + '&fun=new&version=v2'
-        r = self.session.get(url, headers=self.headers, allow_redirects=False, proxies=self.proxies)
-        nodes = xml.dom.minidom.parseString(r.text).documentElement.childNodes
+        resp = self.session.get(url, headers=self.headers, allow_redirects=False, proxies=self.proxies)
+        nodes = xml.dom.minidom.parseString(resp.text).documentElement.childNodes
         for node in nodes:
             if node.nodeName == 'skey':
                 self.skey = node.childNodes[0].data
@@ -111,16 +128,13 @@ class Wechat:
             elif node.nodeName == 'pass_ticket':
                 self.pass_ticket = node.childNodes[0].data
                 print("pass_ticket: %s" %self.pass_ticket)
-            else:
-                # isgrayscale, not needed
-                pass
         self.base_request['DeviceID'] = self.device_id
         print("base_request: %s" %self.base_request)
 
     def __initinate(self):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit'
         params = {
-            'r': self.__getRTimeStamp(),
+            'r': get_rtimestamp(),
             'pass_ticket': self.pass_ticket
         }
         data = { 'BaseRequest': self.base_request }
@@ -128,23 +142,23 @@ class Wechat:
             'ContentType': 'application/json; charset=UTF-8',
             'User-Agent' : self.headers['User-Agent']
         }
-        r = self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
-        r.encoding = 'utf-8'
-        dic = json.loads(r.text)
+        resp = self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
+        resp.encoding = 'utf-8'
+        dic = json.loads(resp.text)
         self.sync_key = dic['SyncKey']
-        self.sync_key_str = '|'.join([str(keyVal['Key']) + '_' + str(keyVal['Val']) for keyVal in self.sync_key['List']])
+        self.sync_key_str = '|'.join([str(item['Key']) + '_' + str(item['Val']) for item in self.sync_key['List']])
         self.account_me = dic['User']
         print("sync_key: %s" %self.sync_key)
         print("sync_key_str: %s" %self.sync_key_str)
         print("account_me: %s" %self.account_me)
 
-    def __statusNotify(self):
+    def __status_notify(self):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify'
         params = { 'pass_ticket': self.pass_ticket }
         self.base_request['Uin'] = int(self.base_request['Uin'])
         data = {
             'BaseRequest'  : self.base_request,
-            'ClientMsgId'  : self.__getTimeStamp(),
+            'ClientMsgId'  : get_timestamp(),
             'Code'         : 3,
             'FromUserName' : self.account_me['UserName'],
             'ToUserName'   : self.account_me['UserName']
@@ -155,12 +169,12 @@ class Wechat:
         }
         self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
 
-    def __getContact(self):
+    def __get_contact(self):
         member_list = []
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact'
         params = {
             'pass_ticket': self.pass_ticket,
-            'r': self.__getTimeStamp(),
+            'r': get_timestamp(),
             'seq': 0,
             'skey': self.skey
         }
@@ -168,16 +182,16 @@ class Wechat:
             'ContentType': 'application/json; charset=UTF-8',
             'User-Agent' : self.headers['User-Agent']
         }
-        r = self.session.post(url, params=params, headers=headers, timeout=180, proxies=self.proxies)
-        r.encoding = 'utf-8'
-        dic = json.loads(r.text)
+        resp = self.session.post(url, params=params, headers=headers, timeout=180, proxies=self.proxies)
+        resp.encoding = 'utf-8'
+        dic = json.loads(resp.text)
         member_list.extend(dic['MemberList'])
 
         while dic["Seq"] != 0:
             params['seq'] = dic["Seq"]
-            r = self.session.post(url, params=params, headers=headers, timeout=180, proxies=self.proxies)
-            r.encoding = 'utf-8'
-            dic = json.loads(r.text)
+            resp = self.session.post(url, params=params, headers=headers, timeout=180, proxies=self.proxies)
+            resp.encoding = 'utf-8'
+            dic = json.loads(resp.text)
             member_list.extend(dic['MemberList'])
 
         for member in member_list:
@@ -192,26 +206,26 @@ class Wechat:
         print("len account_groups         %d:" %len(self.account_groups))
         print("len account_contacts       %d:" %len(self.account_contacts))
 
-    def __syncCheck(self):
+    def __sync_check(self):
         url = 'https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck'
         params = {
-            'r': self.__getTimeStamp(),
+            'r': get_timestamp(),
             'skey': self.skey,
             'sid': self.sid,
             'uin': self.uin,
             'deviceid': self.device_id,
             'synckey': self.sync_key_str,
-            '_': self.__getTimeStamp()
+            '_': get_timestamp()
         }
-        r = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
-        data = re.search(r'window.synccheck=\{retcode:"(\d+)",selector:"(\d+)"\}', r.text)
+        resp = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
+        data = re.search(r'window.synccheck=\{retcode:"(\d+)",selector:"(\d+)"\}', resp.text)
         retcode = data.group(1)
         selector = data.group(2)
         print("retcode: %s, selector: %s" %(retcode, selector))
         return retcode, selector
 
-    def __webwxSync(self):
-        msgList = []
+    def __webwx_sync(self):
+        msg_list = []
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync'
         params = {
             'sid': self.sid,
@@ -221,179 +235,172 @@ class Wechat:
         data = {
             'BaseRequest': self.base_request,
             'SyncKey': self.sync_key,
-            'rr': self.__getRTimeStamp()
+            'rr': get_rtimestamp()
         }
         headers = {
             'ContentType': 'application/json; charset=UTF-8',
             'User-Agent' : self.headers['User-Agent']
         }
-        r = self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
-        r.encoding = 'utf-8'
-        dic = json.loads(r.text)
+        resp = self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
+        resp.encoding = 'utf-8'
+        dic = json.loads(resp.text)
         if dic['BaseResponse']['Ret'] == 0:
             self.sync_key = dic['SyncKey']
             self.sync_key_str = '|'.join([str(keyVal['Key']) + '_' + str(keyVal['Val']) for keyVal in self.sync_key['List']])
-            msgList = dic['AddMsgList']
-        return msgList
+            msg_list = dic['AddMsgList']
+        return msg_list
 
-    def __parseMsg(self, msg):
-        parsedMsg = {}
-        parsedMsg['senderType'] = 'UNSUPPORTED'
-        parsedMsg['senderName'] = msg['FromUserName']
-        parsedMsg['msgType'] = 'UNSUPPORTED'
+    def __parse_msg(self, msg):
+        parsed_msg = {}
+        parsed_msg['senderType'] = 'UNSUPPORTED'
+        parsed_msg['senderName'] = msg['FromUserName']
+        parsed_msg['msgType'] = 'UNSUPPORTED'
 
         if self.account_groups.__contains__(msg['FromUserName']):
-            parsedMsg['senderType'] = 'GROUP'
-            parsedMsg['groupNickName'] = self.account_groups[msg['FromUserName']]['NickName']
+            parsed_msg['senderType'] = 'GROUP'
+            parsed_msg['groupNickName'] = self.account_groups[msg['FromUserName']]['NickName']
         elif self.account_subscriptions.__contains__(msg['FromUserName']):
-            parsedMsg['senderType'] = 'SUBSCRIPTION'
-            parsedMsg['subscriptionNickName'] = self.account_subscriptions[msg['FromUserName']]['NickName']
+            parsed_msg['senderType'] = 'SUBSCRIPTION'
+            parsed_msg['subscriptionNickName'] = self.account_subscriptions[msg['FromUserName']]['NickName']
         elif self.account_contacts.__contains__(msg['FromUserName']):
-            parsedMsg['senderType'] = 'CONTACT'
-            parsedMsg['contactNickName'] = self.account_contacts[msg['FromUserName']]['NickName']
-            parsedMsg['contactRemarkName'] = self.account_contacts[msg['FromUserName']]['RemarkName']
+            parsed_msg['senderType'] = 'CONTACT'
+            parsed_msg['contactNickName'] = self.account_contacts[msg['FromUserName']]['NickName']
+            parsed_msg['contactRemarkName'] = self.account_contacts[msg['FromUserName']]['RemarkName']
         elif self.account_me['UserName'] == msg['FromUserName']:
-            parsedMsg['senderType'] = 'MYSELF'
-            parsedMsg['myNickName'] = self.account_me['NickName']
-        else:
-            pass
+            parsed_msg['senderType'] = 'MYSELF'
+            parsed_msg['myNickName'] = self.account_me['NickName']
 
-        msgType = msg['MsgType']
-        if msgType == 1: # text/link/position
-            subMsgType = msg['SubMsgType']
-            if subMsgType == 0: # text/link
-                parsedMsg['msgType'] = 'TEXT'
-                parsedMsg['content'] = msg['Content']
-                if parsedMsg['senderType'] == 'GROUP':
+        msg_type = msg['MsgType']
+        if msg_type == 1: # text/link/position
+            sub_msg_type = msg['SubMsgType']
+            if sub_msg_type == 0: # text/link
+                parsed_msg['msgType'] = 'TEXT'
+                parsed_msg['content'] = msg['Content']
+                if parsed_msg['senderType'] == 'GROUP':
                     content = msg['Content']
-                    parsedMsg['content'] = content[content.find('>')+1:] # delete sender username info
-            elif subMsgType == 48: # position
-                parsedMsg['msgType'] = 'POSITION'
+                    parsed_msg['content'] = content[content.find('>')+1:] # delete sender username info
+            elif sub_msg_type == 48: # position
+                parsed_msg['msgType'] = 'POSITION'
                 doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
                 node = doc.getElementsByTagName("location")[0]
-                parsedMsg['x'] = node.getAttribute("x")
-                parsedMsg['y'] = node.getAttribute("y")
-                parsedMsg['scale'] = node.getAttribute("scale")
-                parsedMsg['label'] = node.getAttribute("label")
-                parsedMsg['poiname'] = node.getAttribute("poiname")
-            else:
-                pass
-        elif msgType == 3: # image
-            parsedMsg['msgType'] = 'IMAGE'
-            parsedMsg['msgId'] = msg['MsgId']
-            parsedMsg['imgHeight'] = msg['ImgHeight']
-            parsedMsg['imgWidth'] = msg['ImgWidth']
-            parsedMsg['downloadFunc'] = self.__imgDownloadFunc
-        elif msgType == 34: # voice
-            parsedMsg['msgType'] = 'VOICE'
-            parsedMsg['msgId'] = msg['MsgId']
-            parsedMsg['voiceLength'] = msg['VoiceLength']
-            parsedMsg['downloadFunc'] = self.__voiceDownloadFunc
-        elif msgType == 42: # card
-            parsedMsg['msgType'] = 'CARD'
-            parsedMsg['msgId'] = msg['MsgId']
+                parsed_msg['x'] = node.getAttribute("x")
+                parsed_msg['y'] = node.getAttribute("y")
+                parsed_msg['scale'] = node.getAttribute("scale")
+                parsed_msg['label'] = node.getAttribute("label")
+                parsed_msg['poiname'] = node.getAttribute("poiname")
+        elif msg_type == 3: # image
+            parsed_msg['msgType'] = 'IMAGE'
+            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['imgHeight'] = msg['ImgHeight']
+            parsed_msg['imgWidth'] = msg['ImgWidth']
+            parsed_msg['downloadFunc'] = self.__img_download
+        elif msg_type == 34: # voice
+            parsed_msg['msgType'] = 'VOICE'
+            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['voiceLength'] = msg['VoiceLength']
+            parsed_msg['downloadFunc'] = self.__voice_download
+        elif msg_type == 42: # card
+            parsed_msg['msgType'] = 'CARD'
+            parsed_msg['msgId'] = msg['MsgId']
             content = html.unescape(msg['Content']) # TODO: delete emoji info
             content = content.replace('<br/>', '\n')
             doc = xml.dom.minidom.parseString(content).documentElement
-            parsedMsg['username'] = doc.getAttribute("username")
-            parsedMsg['nickname'] = doc.getAttribute("nickname")
-            parsedMsg['alias'] = doc.getAttribute("alias")
-            parsedMsg['province'] = doc.getAttribute("province")
-            parsedMsg['city'] = doc.getAttribute("city")
-            parsedMsg['sex'] = doc.getAttribute("sex")
-            parsedMsg['regionCode'] = doc.getAttribute("regionCode")
-        elif msgType == 43: # video
-            parsedMsg['msgType'] = 'VIDEO'
-            parsedMsg['msgId'] = msg['MsgId']
-            parsedMsg['playLength'] = msg['PlayLength']
-            parsedMsg['imgHeight'] = msg['ImgHeight']
-            parsedMsg['imgWidth'] = msg['ImgWidth']
-            parsedMsg['downloadFunc'] = self.__videoDownloadFunc
-        elif msgType == 47: # animation
-            parsedMsg['msgType'] = 'ANIMATION'
-            parsedMsg['msgId'] = msg['MsgId']
-            parsedMsg['imgHeight'] = msg['ImgHeight']
-            parsedMsg['imgWidth'] = msg['ImgWidth']
-        elif msgType == 49: # attachment
-            appMsgType = msg['AppMsgType']
-            if appMsgType == 6: # file
-                parsedMsg['msgType'] = 'FILE'
-                parsedMsg['msgId'] = msg['MsgId']
-                parsedMsg['fileName'] = msg['FileName']
-                parsedMsg['fileSize'] = msg['FileSize']
-                parsedMsg['mediaId'] = msg['MediaId']
-                parsedMsg['downloadFunc'] = self.__fileDownloadFunc
-            else:
-                pass
-        else:
-            pass
-        return parsedMsg
+            parsed_msg['username'] = doc.getAttribute("username")
+            parsed_msg['nickname'] = doc.getAttribute("nickname")
+            parsed_msg['alias'] = doc.getAttribute("alias")
+            parsed_msg['province'] = doc.getAttribute("province")
+            parsed_msg['city'] = doc.getAttribute("city")
+            parsed_msg['sex'] = doc.getAttribute("sex")
+            parsed_msg['regionCode'] = doc.getAttribute("regionCode")
+        elif msg_type == 43: # video
+            parsed_msg['msgType'] = 'VIDEO'
+            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['playLength'] = msg['PlayLength']
+            parsed_msg['imgHeight'] = msg['ImgHeight']
+            parsed_msg['imgWidth'] = msg['ImgWidth']
+            parsed_msg['downloadFunc'] = self.__video_download
+        elif msg_type == 47: # animation
+            parsed_msg['msgType'] = 'ANIMATION'
+            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['imgHeight'] = msg['ImgHeight']
+            parsed_msg['imgWidth'] = msg['ImgWidth']
+        elif msg_type == 49: # attachment
+            app_msg_type = msg['AppMsgType']
+            if app_msg_type == 6: # file
+                parsed_msg['msgType'] = 'FILE'
+                parsed_msg['msgId'] = msg['MsgId']
+                parsed_msg['fileName'] = msg['FileName']
+                parsed_msg['fileSize'] = msg['FileSize']
+                parsed_msg['mediaId'] = msg['MediaId']
+                parsed_msg['downloadFunc'] = self.__file_download
+
+        return parsed_msg
 
     # default msg process, do nothing
-    def __processMsg(self, msg):
+    def __process_msg(self, msg):
         pass
 
-    def __imgDownloadFunc(self, msgId):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(msgId, self.skey)
-        r = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
-        fileName = 'img_' + msgId + '.jpg'
-        with open(fileName, 'wb') as f:
-            f.write(r.content)
+    def __img_download(self, msg_id):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(msg_id, self.skey)
+        resp = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
+        file_name = 'img_' + msg_id + '.jpg'
+        with open(file_name, 'wb') as fptr:
+            fptr.write(resp.content)
 
-    def __voiceDownloadFunc(self, msgId):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgID=%s&skey=%s'%(msgId, self.skey)
-        r = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
-        fileName = 'voice_' + msgId + '.mp3'
-        with open(fileName, 'wb') as f:
-            f.write(r.content)
+    def __voice_download(self, msg_id):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgID=%s&skey=%s'%(msg_id, self.skey)
+        resp = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
+        file_name = 'voice_' + msg_id + '.mp3'
+        with open(file_name, 'wb') as fptr:
+            fptr.write(resp.content)
 
-    def __videoDownloadFunc(self, msgId):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgID=%s&skey=%s'%(msgId, self.skey)
+    def __video_download(self, msg_id):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgID=%s&skey=%s'%(msg_id, self.skey)
         headers = {
             'Range': 'bytes=0-',
             'User-Agent' : self.headers['User-Agent']
         }
-        r = self.session.get(url, stream=True, headers=headers, proxies=self.proxies)
-        fileName = 'video_' + msgId + '.mp4'
-        with open(fileName, 'wb') as f:
-            f.write(r.content)
+        resp = self.session.get(url, stream=True, headers=headers, proxies=self.proxies)
+        file_name = 'video_' + msg_id + '.mp4'
+        with open(file_name, 'wb') as fptr:
+            fptr.write(resp.content)
 
-    def __fileDownloadFunc(self, msgId):
-        # TODO: download file
-        pass
+    def __file_download(self, msg_id):
+        pass # TODO: download file
 
-    def __getUserName(self, name):
-        if self.account_contacts.__contains__(name): # input contact UserName
-            return name
+    def __get_username(self, name):
+        username = ''
 
-        if self.account_groups.__contains__(name): # input group UserName
-            return name
+        if self.account_contacts.__contains__(name) or self.account_groups.__contains__(name): # input contact/group UserName
+            username = name
 
         for value in self.account_contacts.values(): # input contact NickName/RemarkName
-            if value['NickName'] == name or value['RemarkName'] == name:
-                return value['UserName']
+            if name in (value['NickName'], value['RemarkName']):
+                username = value['UserName']
 
         for value in self.account_groups.values(): # input group NickName
             if value['NickName'] == name:
-                return value['UserName']
+                username = value['UserName']
 
-    # replace __processMsg with custom function
-    def registerProcessMsgFunc(self, func):
-        Wechat.__processMsg = func
+        return username
 
-    def sendTextMsg(self, text, receiver):
+    def register_process_msg_func(self, func):
+        """ replace __process_msg with custom function """
+        wechat.__process_msg = func
+
+    def send_text(self, text, receiver):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg'
         params = { 'pass_ticket': self.pass_ticket }
-        msgId = str(self.__getTimeStamp()) + str(random.random())[2:6] # len = 17
-        toUserName = self.__getUserName(receiver)
+        msg_id = str(get_timestamp()) + str(random.random())[2:6] # len = 17
+        to_username = self.__get_username(receiver)
         data = {
             'BaseRequest': self.base_request,
             'Msg': {
-                "ClientMsgId": msgId,
+                "ClientMsgId": msg_id,
                 "Content": text,
                 "FromUserName": self.account_me['UserName'],
-                "LocalID": msgId,
-                "ToUserName": toUserName,
+                "LocalID": msg_id,
+                "ToUserName": to_username,
                 "Type": 1
             },
             'Scene': 0
@@ -404,49 +411,39 @@ class Wechat:
         }
         self.session.post(url, params=params, data=json.dumps(data, ensure_ascii=False).encode('utf8'), headers=headers, proxies=self.proxies)
 
-    def __getClientMsgId(self):
-        id = str(self.__getTimeStamp()) + str(random.random())[2:6]
-        return id
-
-    def __getFileMd5(self, fileName):
-        with open(fileName, mode="rb") as f:
-            by = f.read()
-        md5 = hashlib.md5(by).hexdigest()
-        return md5
-
-    def __uploadMedia(self, fileName, mediaType, toUserName):
+    def __upload_media(self, file_name, media_type, to_user_name):
         url = 'https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
-        fileLen = str(os.path.getsize(fileName))
-        fileType = mimetypes.guess_type(fileName)[0] or 'application/octet-stream'
+        file_len = str(os.path.getsize(file_name))
+        file_type = mimetypes.guess_type(file_name)[0] or 'application/octet-stream'
         files = {
             'id': (None, 'WU_FILE_%s' % str(self.file_index)),
-            'name': (None, os.path.basename(fileName)),
-            'type': (None, fileType),
-            'lastModifiedDate': (None, '%s' % time.ctime(os.path.getmtime(fileName))),
-            'size': (None, fileLen),
-            'mediatype': (None, mediaType),
+            'name': (None, os.path.basename(file_name)),
+            'type': (None, file_type),
+            'lastModifiedDate': (None, '%s' % time.ctime(os.path.getmtime(file_name))),
+            'size': (None, file_len),
+            'mediatype': (None, media_type),
             'uploadmediarequest': (None, json.dumps({
                 'UploadType': 2,
                 'BaseRequest': self.base_request,
-                'ClientMediaId': self.__getClientMsgId(),
-                'TotalLen': fileLen,
+                'ClientMediaId': get_msg_id(),
+                'TotalLen': file_len,
                 'StartPos': 0,
-                'DataLen': fileLen,
+                'DataLen': file_len,
                 'MediaType': 4,
                 'FromUserName': self.account_me['UserName'],
-                'ToUserName': toUserName,
-                'FileMd5': self.__getFileMd5(fileName)
+                'ToUserName': to_user_name,
+                'FileMd5': get_md5(file_name)
             })),
             'webwx_data_ticket': (None, self.session.cookies['webwx_data_ticket']),
             'pass_ticket': (None, self.pass_ticket),
-            'filename': (os.path.basename(fileName), open(fileName, 'rb'), fileType.split('/')[1]),
+            'filename': (os.path.basename(file_name), open(file_name, 'rb'), file_type.split('/')[1]),
         }
         self.file_index += 1
-        r = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
-        dic = json.loads(r.text)
+        resp = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
+        dic = json.loads(resp.text)
         return dic['MediaId']
 
-    def sendImgMsg(self, fileName, receiver):
+    def send_img(self, file_name, receiver):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg'
         params = {
             'fun': 'async',
@@ -454,18 +451,18 @@ class Wechat:
             'lang': 'en',
             'pass_ticket': self.pass_ticket
         }
-        toUserName = self.__getUserName(receiver)
-        msgId = self.__getClientMsgId()
-        mediaId = self.__uploadMedia(fileName, 'pic', toUserName)
+        to_user_name = self.__get_username(receiver)
+        msg_id = get_msg_id()
+        media_id = self.__upload_media(file_name, 'pic', to_user_name)
         data = {
             'BaseRequest': self.base_request,
             'Msg': {
-                'ClientMsgId': msgId,
+                'ClientMsgId': msg_id,
                 'Content': '',
                 'FromUserName': self.account_me['UserName'],
-                'LocalID': msgId,
-                'MediaId': mediaId,
-                'ToUserName': toUserName,
+                'LocalID': msg_id,
+                'MediaId': media_id,
+                'ToUserName': to_user_name,
                 'Type': 3
             },
             'Scene': 0
@@ -477,29 +474,25 @@ class Wechat:
         self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
 
     def login(self):
-        self.__getUuid()
-        self.__genQRCode()
+        self.__get_uuid()
+        self.__gen_qrcode()
         self.__login()
-        self.__getLoginParams()
+        self.__get_params()
         self.__initinate()
-        self.__statusNotify()
-        self.__getContact()
+        self.__status_notify()
+        self.__get_contact()
 
     def run(self):
-        while (self.isLogin):
-            retcode, selector = self.__syncCheck()
+        while (self.is_login):
+            retcode, selector = self.__sync_check()
             if retcode == '0':
                 if selector == '2':
-                    msgList = self.__webwxSync()
-                    for msg in msgList:
-                        parsedMsg = self.__parseMsg(msg)
-                        self.__processMsg(parsedMsg)
-                else:
-                    pass
+                    msg_list = self.__webwx_sync()
+                    for msg in msg_list:
+                        parsed_msg = self.__parse_msg(msg)
+                        self.__process_msg(parsed_msg)
             elif retcode == '1101':
-                self.isLogin = False
+                self.is_login = False
                 break
-            else:
-                pass
             time.sleep(3)
         print("logout")

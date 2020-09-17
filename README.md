@@ -169,6 +169,26 @@ msgType = UNSUPPORTED:
     没有可选字段
 ```
 
+## 发送接口
+
+支持发送 .jpg .mp4 格式的图片和视频，其它格式文件作为普通文件发送
+
+接收者可以是: msg['senderName']，联系人的昵称，联系人的备注名，群组的昵称，按照这个优先顺序查找
+
+```python
+# 发送文本
+send_text('hello world', u'张三')
+
+# 发送图片
+send_image('test.jpg', u'张三')
+
+# 发送视频
+send_video('test.mp4', u'张三')
+
+# 发送普通文件
+send_file('test.pdf', u'张三')
+```
+
 ## 进阶应用
 
 ### 使用代理
@@ -187,5 +207,4 @@ weChat = wechat.wechat(proxies=proxies)
 3. 解决 emoji 表情信息过滤
 4. 解析群组消息是否包含@信息
 5. 增加文件下载功能
-6. 增加发送视频，普通文件功能
-7. 增加系统异常处理
+6. 增加系统异常处理

@@ -369,29 +369,112 @@ class wechat:
         pass # TODO: download file
 
     def __get_username(self, name):
-        username = ''
-
         if self.account_contacts.__contains__(name) or self.account_groups.__contains__(name): # input contact/group UserName
-            username = name
+            return name
 
         for value in self.account_contacts.values(): # input contact NickName/RemarkName
             if name in (value['NickName'], value['RemarkName']):
-                username = value['UserName']
+                return value['UserName']
 
         for value in self.account_groups.values(): # input group NickName
             if value['NickName'] == name:
-                username = value['UserName']
+                return value['UserName']
 
-        return username
+    def __upload_media(self, file_name, media_type, to_user_name):
+        url = 'https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
+        file_len = os.path.getsize(file_name)
+        file_type = mimetypes.guess_type(file_name)[0] or 'application/octet-stream'
+        md5 = get_md5(file_name)
+        files = {
+            'id': (None, 'WU_FILE_%s' % str(self.file_index)),
+            'name': (None, os.path.basename(file_name)),
+            'type': (None, file_type),
+            'lastModifiedDate': (None, '%s' % time.ctime(os.path.getmtime(file_name))),
+            'size': (None, str(file_len)),
+            'mediatype': (None, media_type),
+            'uploadmediarequest': (None, json.dumps({
+                'UploadType': 2,
+                'BaseRequest': self.base_request,
+                'ClientMediaId': get_msg_id(),
+                'TotalLen': str(file_len),
+                'StartPos': 0,
+                'DataLen': str(file_len),
+                'MediaType': 4,
+                'FromUserName': self.account_me['UserName'],
+                'ToUserName': to_user_name,
+                'FileMd5': md5
+            })),
+            'webwx_data_ticket': (None, self.session.cookies['webwx_data_ticket']),
+            'pass_ticket': (None, self.pass_ticket),
+        }
 
-    def register_process_msg_func(self, func):
-        """ replace __process_msg with custom function """
-        wechat.__process_msg = func
+        fptr = open(file_name, 'rb')
+        chunks = int((file_len - 1) / (1 << 19)) + 1 # one time upload 524288 bytes
+        if chunks > 1:
+            for chunk in range(chunks):
+                f_bytes = fptr.read(1 << 19)
+                files['chunks'] = (None, str(chunks))
+                files['chunk'] = (None, str(chunk))
+                files['filename'] = (os.path.basename(file_name), f_bytes, file_type.split('/')[1])
+                resp = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
+        else:
+            f_bytes = fptr.read(1 << 19)
+            files['filename'] = (os.path.basename(file_name), f_bytes, file_type.split('/')[1])
+            resp = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
+        dic = json.loads(resp.text)
+        fptr.close()
+        self.file_index += 1
+
+        return dic['MediaId']
+
+    def __send_media(self, url, file_name, media_type, receiver):
+        params = {
+            'fun': 'async',
+            'f': 'json',
+            'lang': 'en_US',
+            'pass_ticket': self.pass_ticket
+        }
+
+        msg_id = get_msg_id()
+        to_user_name = self.__get_username(receiver)
+        data = {
+            'BaseRequest': self.base_request,
+            'Msg': {
+                'ClientMsgId': msg_id,
+                'FromUserName': self.account_me['UserName'],
+                'LocalID': msg_id,
+                'ToUserName': to_user_name,
+            },
+            'Scene': 0
+        }
+        media_id = self.__upload_media(file_name, media_type, to_user_name)
+        if media_type == 'pic':
+            data['Msg']['Content'] = ''
+            data['Msg']['MediaId'] = media_id
+            data['Msg']['Type'] = 3
+        elif media_type == 'video':
+            data['Msg']['Content'] = ''
+            data['Msg']['MediaId'] = media_id
+            data['Msg']['Type'] = 43
+        elif media_type == 'doc':
+            file_len = os.path.getsize(file_name)
+            content = ("<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title>" % os.path.basename(file_name) +
+                "<des></des><action></action><type>6</type><content></content><url></url><lowurl></lowurl>" +
+                "<appattach><totallen>%s</totallen><attachid>%s</attachid>" % (str(file_len), media_id) +
+                "<fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>" % os.path.splitext(file_name)[1].replace('.', ''))
+            data['Msg']['Content'] = content
+            data['Msg']['Type'] = 6
+
+        headers = {
+            'ContentType': 'application/json; charset=UTF-8',
+            'User-Agent' : self.headers['User-Agent']
+        }
+        self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
 
     def send_text(self, text, receiver):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg'
         params = { 'pass_ticket': self.pass_ticket }
-        msg_id = str(get_timestamp()) + str(random.random())[2:6] # len = 17
+        msg_id = get_msg_id()
         to_username = self.__get_username(receiver)
         data = {
             'BaseRequest': self.base_request,
@@ -411,67 +494,24 @@ class wechat:
         }
         self.session.post(url, params=params, data=json.dumps(data, ensure_ascii=False).encode('utf8'), headers=headers, proxies=self.proxies)
 
-    def __upload_media(self, file_name, media_type, to_user_name):
-        url = 'https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json'
-        file_len = str(os.path.getsize(file_name))
-        file_type = mimetypes.guess_type(file_name)[0] or 'application/octet-stream'
-        files = {
-            'id': (None, 'WU_FILE_%s' % str(self.file_index)),
-            'name': (None, os.path.basename(file_name)),
-            'type': (None, file_type),
-            'lastModifiedDate': (None, '%s' % time.ctime(os.path.getmtime(file_name))),
-            'size': (None, file_len),
-            'mediatype': (None, media_type),
-            'uploadmediarequest': (None, json.dumps({
-                'UploadType': 2,
-                'BaseRequest': self.base_request,
-                'ClientMediaId': get_msg_id(),
-                'TotalLen': file_len,
-                'StartPos': 0,
-                'DataLen': file_len,
-                'MediaType': 4,
-                'FromUserName': self.account_me['UserName'],
-                'ToUserName': to_user_name,
-                'FileMd5': get_md5(file_name)
-            })),
-            'webwx_data_ticket': (None, self.session.cookies['webwx_data_ticket']),
-            'pass_ticket': (None, self.pass_ticket),
-            'filename': (os.path.basename(file_name), open(file_name, 'rb'), file_type.split('/')[1]),
-        }
-        self.file_index += 1
-        resp = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
-        dic = json.loads(resp.text)
-        return dic['MediaId']
-
-    def send_img(self, file_name, receiver):
+    def send_image(self, file_name, receiver):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg'
-        params = {
-            'fun': 'async',
-            'f': 'json',
-            'lang': 'en',
-            'pass_ticket': self.pass_ticket
-        }
-        to_user_name = self.__get_username(receiver)
-        msg_id = get_msg_id()
-        media_id = self.__upload_media(file_name, 'pic', to_user_name)
-        data = {
-            'BaseRequest': self.base_request,
-            'Msg': {
-                'ClientMsgId': msg_id,
-                'Content': '',
-                'FromUserName': self.account_me['UserName'],
-                'LocalID': msg_id,
-                'MediaId': media_id,
-                'ToUserName': to_user_name,
-                'Type': 3
-            },
-            'Scene': 0
-        }
-        headers = {
-            'ContentType': 'application/json; charset=UTF-8',
-            'User-Agent' : self.headers['User-Agent']
-        }
-        self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
+        media_type = 'pic'
+        self.__send_media(url, file_name, media_type, receiver)
+
+    def send_video(self, file_name, receiver):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendvideomsg'
+        media_type = 'video'
+        self.__send_media(url, file_name, media_type, receiver)
+
+    def send_file(self, file_name, receiver):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendappmsg'
+        media_type = 'doc'
+        self.__send_media(url, file_name, media_type, receiver)
+
+    def register_process_msg_func(self, func):
+        """ replace __process_msg with custom function """
+        wechat.__process_msg = func
 
     def login(self):
         self.__get_uuid()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-wechat
+webwx
 
 This module provides interfaces to login, send and receive weixin msg
 """
@@ -38,7 +38,7 @@ def get_md5(file_name):
     return md5
 
 
-class wechat:
+class webwx:
 
     def __init__(self, proxies=None):
         self.headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36' }
@@ -511,7 +511,7 @@ class wechat:
 
     def register_process_msg_func(self, func):
         """ replace __process_msg with custom function """
-        wechat.__process_msg = func
+        webwx.__process_msg = func
 
     def login(self):
         self.__get_uuid()

@@ -1,15 +1,15 @@
-# wechat
+# webwx
 
-wechat 是一个开源的微信客户端实现接口，使用 python 完成微信的登录和消息收发功能
+webwx 是一个开源的微信客户端实现接口，使用 python 完成微信的登录和消息收发功能
 
 当前支持的功能相对简单，后续会持续添加功能并优化
 
 ## 基本使用示例
 
 ```python
-import wechat
+import webwx
 
-weChat = wechat.wechat()
+weChat = webwx.webwx()
 weChat.login()
 weChat.run()
 ```
@@ -18,13 +18,13 @@ weChat.run()
 ## 自定义消息处理
 
 ```python
-import wechat
+import webwx
 
 # 自定义消息处理函数
 def process_msg(self, msg):
     print(msg)
 
-weChat = wechat.wechat()
+weChat = webwx.webwx()
 weChat.register_process_msg_func(process_msg)
 weChat.login()
 weChat.run()
@@ -193,11 +193,11 @@ send_file('test.pdf', u'张三')
 
 ### 使用代理
 
-在 wechat 的构造函数中传入代理，就可以使用代理完成各种 requests 消息处理
+在 webwx 的构造函数中传入代理，就可以使用代理完成各种 requests 消息处理
 
 ```python
 proxies = { 'http':'http://ip:port', 'https':'https://ip:port' }
-weChat = wechat.wechat(proxies=proxies)
+weChat = webwx.webwx(proxies=proxies)
 ```
 
 ## 待实现功能

@@ -4,6 +4,8 @@ webwx 是一个开源的微信客户端实现接口，使用 python 完成微信
 
 当前支持的功能相对简单，后续会持续添加功能并优化
 
+具体协议分析参考博客：https://blog.csdn.net/chenwh_cn/article/details/108581139
+
 ## 基本使用示例
 
 ```python
@@ -198,6 +200,60 @@ send_file('test.pdf', u'张三')
 ```python
 proxies = { 'http':'http://ip:port', 'https':'https://ip:port' }
 weChat = webwx.webwx(proxies=proxies)
+```
+
+### 下载多媒体资源
+
+```python
+# 下载所有接收到的图片/语音/视频消息，保存 jpg/mp3/mp4 文件到当前目录
+def process_msg(self, msg):
+    if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO"]:
+        msg['downloadFunc'](msg['msgId'])
+```
+
+### 发送多媒体资源
+
+```python
+# 监测群消息内容，根据内容发送图片/语音/视频消息到联系人
+img_path = 'img_5100655276253422831.jpg'
+video_path = 'video_1879067029541949726.mp4'
+doc_path = 'pdf_3446080029541949727.pdf'
+
+def process_msg(self, msg):
+    if msg['senderType'] == 'GROUP' and msg['groupNickName'] == u'欢乐大家庭' and msg['msgType'] == 'TEXT':
+        if msg['content'] == u'文本':
+            self.send_text('hello world', u'张三')
+        if msg['content'] == u'图片':
+            self.send_image(img_path, u'张三')
+        if msg['content'] == u'视频':
+            self.send_video(video_path, u'张三')
+        if msg['content'] == u'文件':
+            self.send_file(doc_path, u'张三')
+```
+
+### 智能聊天机器人
+
+```python
+def emotibot(req_text):
+    params = {
+        "cmd": "chat",
+        "appid": "xxx", # 申请的 emotibot 机器人id
+        "userid": "xiaoming",
+        "text": req_text,
+        "location": "hangzhou"
+    }
+
+    resp = requests.request("post", "http://idc.emotibot.com/api/ApiKey/openapi.php", params=params)
+    dic = json.loads(resp.text)
+    resp_text = dic["data"][0]["value"]
+    return resp_text
+
+# 接收联系人消息，通过智能机器人获取回复消息，然后发送回联系人，实现智能聊天
+def process_msg(self, msg):
+    if msg['senderType'] == 'CONTACT' and msg['contactNickName'] == u'张三' and msg['msgType'] == 'TEXT':
+        req_text = msg['content']
+        resp_text = emotibot(req_text)
+        self.send_text(resp_text, u'张三')
 ```
 
 ## 待实现功能

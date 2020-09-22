@@ -54,6 +54,8 @@ msg 是字典类型，消息类型不同所包含的字段也不同，有些字�
 senderType = GROUP
 
     'groupNickName': 字符串类型，表示发送者所在的群组昵称
+    'userNickName': 字符串类型， 表示发送者的昵称
+    'userDisplayName': 字符串类型，表示发送者设置的自己在该群的显示名称，没有设置为""
 
 
 senderType = SUBSCRIPTION

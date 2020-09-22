@@ -60,6 +60,7 @@ class webwx:
         self.account_contacts = {}
         self.account_subscriptions = {}
         self.account_groups = {}
+        self.account_groups_members = {}
         self.file_index = 0
         self.pickle_name = 'webwx.pkl'
 
@@ -208,6 +209,31 @@ class webwx:
         print("len account_groups         %d:" %len(self.account_groups))
         print("len account_contacts       %d:" %len(self.account_contacts))
 
+    def __get_group_members(self):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact'
+        params = {
+            'type': 'ex',
+            'r': get_timestamp(),
+            'lang': 'en_US'
+        }
+        grouplist = []
+        for group in self.account_groups.values():
+            grouplist.append({'UserName':group['UserName'], 'ChatRoomId':group['ChatRoomId']})
+        data = {
+            'BaseRequest': self.base_request,
+            'Count': len(self.account_groups),
+            'List': grouplist
+        }
+        headers = {
+            'ContentType': 'application/json; charset=UTF-8',
+            'User-Agent' : self.headers['User-Agent']
+        }
+        resp = self.session.post(url, params=params, data=json.dumps(data), headers=headers, timeout=180, proxies=self.proxies)
+        resp.encoding = 'utf-8'
+        dic = json.loads(resp.text)
+        for member in dic['ContactList']:
+            self.account_groups_members[member['UserName']] = member # save group member list info
+
     def __sync_check(self):
         url = 'https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck'
         params = {
@@ -261,6 +287,13 @@ class webwx:
         if self.account_groups.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'GROUP'
             parsed_msg['groupNickName'] = self.account_groups[msg['FromUserName']]['NickName']
+            ret = re.match('(@[0-9a-z]*?):<br/>(.*)$', msg['Content']) # username:<br>content
+            user_name = ret.groups()[0] # get member username
+            for item in self.account_groups_members[msg['FromUserName']]['MemberList']:
+                if item['UserName'] == user_name:
+                    parsed_msg['userNickName'] = item['NickName']
+                    parsed_msg['userDisplayName'] = item['DisplayName']
+                    break
         elif self.account_subscriptions.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'SUBSCRIPTION'
             parsed_msg['subscriptionNickName'] = self.account_subscriptions[msg['FromUserName']]['NickName']
@@ -279,8 +312,8 @@ class webwx:
                 parsed_msg['msgType'] = 'TEXT'
                 parsed_msg['content'] = msg['Content']
                 if parsed_msg['senderType'] == 'GROUP':
-                    content = msg['Content']
-                    parsed_msg['content'] = content[content.find('>')+1:] # delete sender username info
+                    ret = re.match('(@[0-9a-z]*?):<br/>(.*)$', msg['Content'])
+                    parsed_msg['content'] = ret.groups()[1] # delete sender username info
             elif sub_msg_type == 48: # position
                 parsed_msg['msgType'] = 'POSITION'
                 doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
@@ -384,6 +417,7 @@ class webwx:
             'account_contacts': self.account_contacts,
             'account_subscriptions': self.account_subscriptions,
             'account_groups': self.account_groups,
+            'account_groups_members': self.account_groups_members,
             'cookies': self.session.cookies.get_dict()
         }
 
@@ -408,6 +442,7 @@ class webwx:
             self.account_contacts = conf['account_contacts']
             self.account_subscriptions = conf['account_subscriptions']
             self.account_groups = conf['account_groups']
+            self.account_groups_members = conf['account_groups_members']
             self.session.cookies = requests.utils.cookiejar_from_dict(conf['cookies'])
 
             ret_code, _ = self.__sync_check()
@@ -567,7 +602,7 @@ class webwx:
 
     def login(self):
         """ public method, scan qrcode to login, or hot reload without scan """
-        if self.__load_conf():
+        if self.__load_conf(): # read cache from file
             self.is_login = True
             print("login success")
         else:
@@ -578,7 +613,8 @@ class webwx:
             self.__initinate()
             self.__status_notify()
             self.__get_contact()
-            self.__dump_conf()
+            self.__get_group_members()
+            self.__dump_conf() # save cache to file
 
     def run(self):
         """ public method, loop receive and process messages """

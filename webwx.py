@@ -15,6 +15,7 @@ import json
 import html
 import mimetypes
 import hashlib
+import pickle
 import qrcode
 import requests
 
@@ -60,6 +61,7 @@ class webwx:
         self.account_subscriptions = {}
         self.account_groups = {}
         self.file_index = 0
+        self.pickle_name = 'webwx.pkl'
 
     def __get_uuid(self):
         url = 'https://login.weixin.qq.com/jslogin'
@@ -87,7 +89,7 @@ class webwx:
         url = 'https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login'
         tip = 1 # 0:scaned, 1:not scaned
 
-        while (not self.is_login):
+        while not self.is_login:
             params = {
                 'loginicon': 'true',
                 'uuid': self.uuid,
@@ -368,6 +370,52 @@ class webwx:
     def __file_download(self, msg_id):
         pass # TODO: download file
 
+    def __dump_conf(self):
+        conf = {
+            'skey': self.skey,
+            'sid': self.sid,
+            'uin': self.uin,
+            'pass_ticket': self.pass_ticket,
+            'device_id': self.device_id,
+            'base_request': self.base_request,
+            'sync_key': self.sync_key,
+            'sync_key_str': self.sync_key_str,
+            'account_me': self.account_me,
+            'account_contacts': self.account_contacts,
+            'account_subscriptions': self.account_subscriptions,
+            'account_groups': self.account_groups,
+            'cookies': self.session.cookies.get_dict()
+        }
+
+        with open(self.pickle_name, 'wb') as fptr:
+            fptr.truncate() # clean
+            pickle.dump(conf, fptr)
+
+    def __load_conf(self):
+        if os.path.exists(self.pickle_name):
+            with open(self.pickle_name, 'rb') as fptr:
+                conf = pickle.load(fptr)
+
+            self.skey = conf['skey']
+            self.sid = conf['sid']
+            self.uin = conf['uin']
+            self.pass_ticket = conf['pass_ticket']
+            self.device_id = conf['device_id']
+            self.base_request = conf['base_request']
+            self.sync_key = conf['sync_key']
+            self.sync_key_str = conf['sync_key_str']
+            self.account_me = conf['account_me']
+            self.account_contacts = conf['account_contacts']
+            self.account_subscriptions = conf['account_subscriptions']
+            self.account_groups = conf['account_groups']
+            self.session.cookies = requests.utils.cookiejar_from_dict(conf['cookies'])
+
+            ret_code, _ = self.__sync_check()
+            if ret_code == "0":
+                return True
+
+        return False
+
     def __get_username(self, name):
         if self.account_contacts.__contains__(name) or self.account_groups.__contains__(name): # input contact/group UserName
             return name
@@ -472,6 +520,7 @@ class webwx:
         self.session.post(url, params=params, data=json.dumps(data), headers=headers, proxies=self.proxies)
 
     def send_text(self, text, receiver):
+        ''' public method, send text to receiver, parameter receiver can be msg['senderName']/nickname/remarkname '''
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg'
         params = { 'pass_ticket': self.pass_ticket }
         msg_id = get_msg_id()
@@ -495,35 +544,45 @@ class webwx:
         self.session.post(url, params=params, data=json.dumps(data, ensure_ascii=False).encode('utf8'), headers=headers, proxies=self.proxies)
 
     def send_image(self, file_name, receiver):
+        ''' public method, send image to receiver, parameter receiver can be msg['senderName']/nickname/remarkname '''
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg'
         media_type = 'pic'
         self.__send_media(url, file_name, media_type, receiver)
 
     def send_video(self, file_name, receiver):
+        ''' public method, send video to receiver, parameter receiver can be msg['senderName']/nickname/remarkname '''
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendvideomsg'
         media_type = 'video'
         self.__send_media(url, file_name, media_type, receiver)
 
     def send_file(self, file_name, receiver):
+        ''' public method, send file to receiver, parameter receiver can be msg['senderName']/nickname/remarkname '''
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendappmsg'
         media_type = 'doc'
         self.__send_media(url, file_name, media_type, receiver)
 
     def register_process_msg_func(self, func):
-        """ replace __process_msg with custom function """
+        """ public method, replace __process_msg method with custom method """
         webwx.__process_msg = func
 
     def login(self):
-        self.__get_uuid()
-        self.__gen_qrcode()
-        self.__login()
-        self.__get_params()
-        self.__initinate()
-        self.__status_notify()
-        self.__get_contact()
+        """ public method, scan qrcode to login, or hot reload without scan """
+        if self.__load_conf():
+            self.is_login = True
+            print("login success")
+        else:
+            self.__get_uuid()
+            self.__gen_qrcode()
+            self.__login()
+            self.__get_params()
+            self.__initinate()
+            self.__status_notify()
+            self.__get_contact()
+            self.__dump_conf()
 
     def run(self):
-        while (self.is_login):
+        """ public method, loop receive and process messages """
+        while self.is_login:
             retcode, selector = self.__sync_check()
             if retcode == '0':
                 if selector == '2':
@@ -531,7 +590,7 @@ class webwx:
                     for msg in msg_list:
                         parsed_msg = self.__parse_msg(msg)
                         self.__process_msg(parsed_msg)
-            elif retcode == '1101':
+            elif retcode == '1101': # logout from phone
                 self.is_login = False
                 break
             time.sleep(3)

@@ -7,6 +7,8 @@ This module provides interfaces to login, send and receive weixin msg
 """
 
 import os
+import platform
+import subprocess
 import time
 import re
 import random
@@ -38,6 +40,14 @@ def get_md5(file_name):
     md5 = hashlib.md5(f_bytes).hexdigest()
     return md5
 
+def display_qrcode(file_name):
+    env_os = platform.system()
+    if env_os == 'Darwin':
+        subprocess.call(['open', file_name])
+    elif env_os == 'Linux':
+        subprocess.call(['xdg-open', file_name])
+    elif env_os == 'Windows':
+        os.startfile(file_name)
 
 class webwx:
 
@@ -61,8 +71,10 @@ class webwx:
         self.account_subscriptions = {}
         self.account_groups = {}
         self.account_groups_members = {}
-        self.file_index = 0
-        self.pickle_name = 'webwx.pkl'
+        self.file_upload_index = 0
+        self.file_pickle_name = 'webwx.pkl'
+        self.file_qrcode_name = 'qrcode.jpg'
+        self.enable_qrcode_cmd = True
 
     def __get_uuid(self):
         url = 'https://login.weixin.qq.com/jslogin'
@@ -81,10 +93,23 @@ class webwx:
             print("uuid: %s" %self.uuid)
 
     def __gen_qrcode(self):
-        url = 'https://login.weixin.qq.com/l/' + self.uuid
-        code = qrcode.QRCode()
-        code.add_data(url)
-        code.print_ascii(invert=False)
+        if self.enable_qrcode_cmd:
+            url = 'https://login.weixin.qq.com/l/' + self.uuid
+            code = qrcode.QRCode()
+            code.add_data(url)
+            code.print_ascii(invert=False)
+        else:
+            url = 'https://login.weixin.qq.com/qrcode/' + self.uuid
+            headers = {
+                'ContentType': 'image/jpeg;',
+                'User-Agent' : self.headers['User-Agent']
+            }
+            resp = self.session.get(url, headers=headers, proxies=self.proxies)
+            with open(self.file_qrcode_name, 'wb') as fptr:
+                fptr.truncate() # clean file
+                fptr.write(resp.content)
+
+            display_qrcode(self.file_qrcode_name)
 
     def __login(self):
         url = 'https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login'
@@ -403,7 +428,7 @@ class webwx:
     def __file_download(self, msg_id):
         pass # TODO: download file
 
-    def __dump_conf(self):
+    def __dump_pickle(self):
         conf = {
             'skey': self.skey,
             'sid': self.sid,
@@ -421,13 +446,13 @@ class webwx:
             'cookies': self.session.cookies.get_dict()
         }
 
-        with open(self.pickle_name, 'wb') as fptr:
-            fptr.truncate() # clean
+        with open(self.file_pickle_name, 'wb') as fptr:
+            fptr.truncate() # clean file
             pickle.dump(conf, fptr)
 
-    def __load_conf(self):
-        if os.path.exists(self.pickle_name):
-            with open(self.pickle_name, 'rb') as fptr:
+    def __load_pickle(self):
+        if os.path.exists(self.file_pickle_name):
+            with open(self.file_pickle_name, 'rb') as fptr:
                 conf = pickle.load(fptr)
 
             self.skey = conf['skey']
@@ -469,7 +494,7 @@ class webwx:
         file_type = mimetypes.guess_type(file_name)[0] or 'application/octet-stream'
         md5 = get_md5(file_name)
         files = {
-            'id': (None, 'WU_FILE_%s' % str(self.file_index)),
+            'id': (None, 'WU_FILE_%s' % str(self.file_upload_index)),
             'name': (None, os.path.basename(file_name)),
             'type': (None, file_type),
             'lastModifiedDate': (None, '%s' % time.ctime(os.path.getmtime(file_name))),
@@ -506,7 +531,7 @@ class webwx:
             resp = self.session.post(url, files=files, headers=self.headers, proxies=self.proxies)
         dic = json.loads(resp.text)
         fptr.close()
-        self.file_index += 1
+        self.file_upload_index += 1
 
         return dic['MediaId']
 
@@ -600,9 +625,10 @@ class webwx:
         """ public method, replace __process_msg method with custom method """
         webwx.__process_msg = func
 
-    def login(self):
+    def login(self, enable_qrcode_cmd=True):
         """ public method, scan qrcode to login, or hot reload without scan """
-        if self.__load_conf(): # read cache from file
+        self.enable_qrcode_cmd = enable_qrcode_cmd
+        if self.__load_pickle(): # read cache from file
             self.is_login = True
             print("login success")
         else:
@@ -614,7 +640,7 @@ class webwx:
             self.__status_notify()
             self.__get_contact()
             self.__get_group_members()
-            self.__dump_conf() # save cache to file
+            self.__dump_pickle() # save cache to file
 
     def run(self):
         """ public method, loop receive and process messages """

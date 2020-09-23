@@ -63,7 +63,8 @@ senderType = GROUP
 
     'groupNickName': 字符串类型，表示发送者所在的群组昵称
     'userNickName': 字符串类型， 表示发送者的昵称
-    'userDisplayName': 字符串类型，表示发送者设置的自己在该群的显示名称，没有设置为""
+    'userDisplayName': 字符串类型，表示发送者设置的自己在该群的显示名称，没有设置为 ""
+    'meIsAt': 布尔类型，表示自己是否被 @
 
 
 senderType = SUBSCRIPTION
@@ -273,6 +274,5 @@ def process_msg(self, msg):
 ## 待实现功能
 
 1. 解决 emoji 表情信息过滤
-2. 解析群组消息是否包含@信息
-3. 增加文件下载功能
-4. 增加系统异常处理
+2. 增加文件下载功能
+3. 增加系统异常处理

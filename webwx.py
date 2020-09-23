@@ -304,6 +304,33 @@ class webwx:
             msg_list = dic['AddMsgList']
         return msg_list
 
+    def __parse_group_msg(self, msg, parsed_msg):
+        parsed_msg['userNickName'] = ''
+        parsed_msg['userDisplayName'] = ''
+        parsed_msg['meIsAt'] = False
+
+        ret = re.match('(@[0-9a-z]*?):<br/>(.*)$', msg['Content']) # username:<br>text
+        user_name, text = ret.groups()
+        for item in self.account_groups_members[msg['FromUserName']]['MemberList']:
+            if item['UserName'] == user_name:
+                parsed_msg['userNickName'] = item['NickName']
+                parsed_msg['userDisplayName'] = item['DisplayName']
+                found_flag1 = True
+
+            if item['UserName'] == self.account_me['UserName']:
+                my_displayname_in_group = item['DisplayName']
+                found_flag2 = True
+
+            if found_flag1 and found_flag2:
+                break
+
+        str_at = "@" + self.account_me['NickName'] + '\u2005'
+        if my_displayname_in_group:
+            str_at = "@" + my_displayname_in_group + '\u2005'
+
+        if text.find(str_at) != -1:
+            parsed_msg['meIsAt'] = True
+
     def __parse_msg(self, msg):
         parsed_msg = {}
         parsed_msg['senderType'] = 'UNSUPPORTED'
@@ -313,13 +340,7 @@ class webwx:
         if self.account_groups.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'GROUP'
             parsed_msg['groupNickName'] = self.account_groups[msg['FromUserName']]['NickName']
-            ret = re.match('(@[0-9a-z]*?):<br/>(.*)$', msg['Content']) # username:<br>content
-            user_name = ret.groups()[0] # get member username
-            for item in self.account_groups_members[msg['FromUserName']]['MemberList']:
-                if item['UserName'] == user_name:
-                    parsed_msg['userNickName'] = item['NickName']
-                    parsed_msg['userDisplayName'] = item['DisplayName']
-                    break
+            self.__parse_group_msg(msg, parsed_msg)
         elif self.account_subscriptions.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'SUBSCRIPTION'
             parsed_msg['subscriptionNickName'] = self.account_subscriptions[msg['FromUserName']]['NickName']
@@ -556,7 +577,9 @@ class webwx:
             },
             'Scene': 0
         }
+
         media_id = self.__upload_media(file_name, media_type, to_user_name)
+
         if media_type == 'pic':
             data['Msg']['Content'] = ''
             data['Msg']['MediaId'] = media_id

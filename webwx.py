@@ -75,6 +75,7 @@ class webwx:
         self.file_pickle_name = 'webwx.pkl'
         self.file_qrcode_name = 'qrcode.jpg'
         self.enable_qrcode_cmd = True
+        self.enable_relogin = True
 
     def __get_uuid(self):
         url = 'https://login.weixin.qq.com/jslogin'
@@ -625,22 +626,27 @@ class webwx:
         """ public method, replace __process_msg method with custom method """
         webwx.__process_msg = func
 
-    def login(self, enable_qrcode_cmd=True):
-        """ public method, scan qrcode to login, or hot reload without scan """
+    def login(self, enable_relogin=True, enable_qrcode_cmd=True):
+        """ public method, scan qrcode or hot relogin without scan to login """
+        self.enable_relogin = enable_relogin
         self.enable_qrcode_cmd = enable_qrcode_cmd
-        if self.__load_pickle(): # read cache from file
-            self.is_login = True
-            print("login success")
-        else:
-            self.__get_uuid()
-            self.__gen_qrcode()
-            self.__login()
-            self.__get_params()
-            self.__initinate()
-            self.__status_notify()
-            self.__get_contact()
-            self.__get_group_members()
-            self.__dump_pickle() # save cache to file
+
+        if self.enable_relogin:
+            if self.__load_pickle():
+                self.is_login = True
+                print("login success")
+                return
+
+        self.__get_uuid()
+        self.__gen_qrcode()
+        self.__login()
+        self.__get_params()
+        self.__initinate()
+        self.__status_notify()
+        self.__get_contact()
+        self.__get_group_members()
+        if self.enable_relogin:
+            self.__dump_pickle()
 
     def run(self):
         """ public method, loop receive and process messages """

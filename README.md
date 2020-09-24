@@ -6,6 +6,53 @@ webwx 是一个开源的微信客户端实现接口，使用 python 完成微信
 
 具体协议分析参考博客：https://blog.csdn.net/chenwh_cn/article/details/108581139
 
+
+## API 接口函数
+
+### login(enable_relogin=True, enable_qrcode_cmd=True):
+```python
+enable_relogin:
+True:  使用缓存，每次登录成功后将信息保存到文件，如果缓存仍然有效则下次无需再扫码登录，可以直接收发消息
+False: 不使用缓存，每次都扫码登录
+默认值 True，即默认使用缓存
+
+enable_qrcode_cmd:
+True:  二维码直接显示在屏幕上
+False: 二维码保存在图片文件中，通过打开图片文件的方式显示二维码
+默认值 True，即二维码直接显示在屏幕上
+```
+
+### send_text(text, receiver):
+```python
+发送普通文本消息，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+```
+
+### send_image(file_name, receiver):
+```python
+发送 .jpg 格式图片，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+```
+
+### send_video(file_name, receiver):
+```python
+发送 .mp4 格式视频，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+```
+
+### send_file(file_name, receiver):
+```python
+发送普通文件，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+```
+
+### register_process_msg_func(func):
+```python
+注册自定义消息处理函数，默认接收到消息后不做任何处理
+```
+
+### run():
+```python
+循环接收并处理消息，1. 检查是否有接收到新消息 2. 解析消息，不同类型填充不同字段信息 3. 调用默认的或自定义的消息处理函数处理消息
+```
+
+
 ## 基本使用示例
 
 ```python
@@ -15,19 +62,9 @@ weChat = webwx.webwx()
 weChat.login()
 weChat.run()
 ```
-该示例实现最基础功能：微信二维码扫码登录或者缓存自动登录，接收和处理消息，默认接收的消息不做任何处理
 
-## 登录
+该示例实现最基础功能：微信二维码扫码登录或者缓存自动登录，然后接收并解析消息，最后调用默认的或自定义的消息处理函数处理消息
 
-登录方式有两种：一是不使用缓存，每次都扫码登录；二是使用缓存，每次登录成功后将信息保存到文件，如果缓存仍然有效则下次无需再扫码登录，可以直接收发消息
-
-``` login() ``` 函数带有一个参数 ``` enable_relogin ```，默认值 ``` True ```，表示使用缓存，如果取值 ``` False ```，则不使用缓存每次扫码登录
-
-## 二维码显示
-
-扫码登录时，二维码的显示有两种方式：一是直接显示在屏幕上；二是通过打开图片文件的方式
-
-``` login() ``` 函数带有一个参数 ``` enable_qrcode_cmd ```，默认值 ``` True ```，表示二维码显示在屏幕上，如果取值 ``` False ```，则打开图片文件显示二维码
 
 ## 自定义消息处理
 
@@ -44,9 +81,9 @@ weChat.login()
 weChat.run()
 ```
 
-首先自定义消息处理函数，然后调用 register_process_msg_func 替换默认处理函数
+调用 register_process_msg_func，用自定义消息处理函数替换默认处理函数
 
-msg 是字典类型，消息类型不同所包含的字段也不同，有些字段是必有的，有些是可选的
+msg 即解析后的消息，字典类型，消息类型不同所包含的字段也不同，有些字段是必有的，有些是可选的
 
 ### 必有字段：
 
@@ -186,50 +223,33 @@ msgType = UNSUPPORTED:
     没有可选字段
 ```
 
-## 发送接口
-
-支持发送 .jpg .mp4 格式的图片和视频，其它格式文件作为普通文件发送
-
-接收者可以是: msg['senderName']，联系人的昵称，联系人的备注名，群组的昵称，按照这个优先顺序查找
-
-```python
-# 发送文本
-send_text('hello world', u'张三')
-
-# 发送图片
-send_image('test.jpg', u'张三')
-
-# 发送视频
-send_video('test.mp4', u'张三')
-
-# 发送普通文件
-send_file('test.pdf', u'张三')
-```
 
 ## 进阶应用
 
 ### 使用代理
 
-在 webwx 的构造函数中传入代理，就可以使用代理完成各种 requests 消息处理
+在 webwx 的构造函数中传入代理，就可以使用代理完成 GET/POST 请求
 
 ```python
 proxies = { 'http':'http://ip:port', 'https':'https://ip:port' }
 weChat = webwx.webwx(proxies=proxies)
 ```
 
+
 ### 下载多媒体资源
 
 ```python
-# 下载所有接收到的图片/语音/视频消息，保存 jpg/mp3/mp4 文件到当前目录
+# 下载所有接收到的图片/语音/视频消息，保存为 jpg/mp3/mp4 文件到当前目录
 def process_msg(self, msg):
     if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO"]:
         msg['downloadFunc'](msg['msgId'])
 ```
 
+
 ### 发送多媒体资源
 
 ```python
-# 监测群消息内容，根据内容发送图片/语音/视频消息到联系人
+# 监测特定群组消息内容，根据内容发送图片/语音/视频消息到特定联系人
 img_path = 'img_5100655276253422831.jpg'
 video_path = 'video_1879067029541949726.mp4'
 doc_path = 'pdf_3446080029541949727.pdf'
@@ -245,6 +265,7 @@ def process_msg(self, msg):
         if msg['content'] == u'文件':
             self.send_file(doc_path, u'张三')
 ```
+
 
 ### 智能聊天机器人
 
@@ -263,13 +284,23 @@ def emotibot(req_text):
     resp_text = dic["data"][0]["value"]
     return resp_text
 
-# 接收联系人消息，通过智能机器人获取回复消息，然后发送回联系人，实现智能聊天
+# 接收特定联系人消息，通过智能机器人获取回复消息，然后发送回对方
 def process_msg(self, msg):
     if msg['senderType'] == 'CONTACT' and msg['contactNickName'] == u'张三' and msg['msgType'] == 'TEXT':
         req_text = msg['content']
         resp_text = emotibot(req_text)
-        self.send_text(resp_text, u'张三')
+        self.send_text(resp_text, msg['senderName'])
 ```
+
+
+### 监测自己被群组 @ 消息
+
+```python
+def process_msg(self, msg):
+    if msg['senderType'] == 'GROUP' and msg['meIsAt'] == True:
+        print(msg) # 可以扩展做些其它自定义处理
+```
+
 
 ## 待实现功能
 

@@ -340,7 +340,7 @@ class webwx:
         if self.account_groups.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'GROUP'
             parsed_msg['groupNickName'] = self.account_groups[msg['FromUserName']]['NickName']
-            self.__parse_group_msg(msg, parsed_msg)
+            self.__parse_group_msg(msg, parsed_msg) # parse userNickName/userDisplayName/meIsAt
         elif self.account_subscriptions.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'SUBSCRIPTION'
             parsed_msg['subscriptionNickName'] = self.account_subscriptions[msg['FromUserName']]['NickName']

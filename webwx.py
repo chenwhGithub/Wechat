@@ -35,7 +35,7 @@ def get_msg_id():
     return msg_id
 
 def get_md5(file_name):
-    with open(file_name, mode="rb") as fptr:
+    with open(file_name, mode='rb') as fptr:
         f_bytes = fptr.read()
     md5 = hashlib.md5(f_bytes).hexdigest()
     return md5
@@ -89,9 +89,9 @@ class webwx:
         resp = self.session.get(url, params=params, headers=self.headers, proxies=self.proxies)
         regx = r'window.QRLogin.code = (\d+); window.QRLogin.uuid = "(\S+?)";'
         data = re.search(regx, resp.text)
-        if data.group(1) == '200': # OK
+        if data.group(1) == '200':
             self.uuid = data.group(2)
-            print("uuid: %s" %self.uuid)
+            print('uuid: %s' %self.uuid)
 
     def __gen_qrcode(self):
         if self.enable_qrcode_cmd:
@@ -114,7 +114,7 @@ class webwx:
 
     def __login(self):
         url = 'https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login'
-        tip = 1 # 0:scaned, 1:not scaned
+        tip = 1 # 0-scaned, 1-not scaned
 
         while not self.is_login:
             params = {
@@ -130,12 +130,12 @@ class webwx:
                 tip = 1
             elif data.group(1) == '201': # scaned
                 tip = 0
-                print("scan success")
+                print('scan success')
             elif data.group(1) == '200': # success
                 param = re.search(r'window.redirect_uri="(\S+?)";', resp.text)
                 self.redirect_uri = param.group(1)
                 self.is_login = True
-                print("login success")
+                print('login success')
 
     def __get_params(self):
         url = self.redirect_uri + '&fun=new&version=v2'
@@ -145,20 +145,20 @@ class webwx:
             if node.nodeName == 'skey':
                 self.skey = node.childNodes[0].data
                 self.base_request['Skey'] = self.skey
-                print("skey: %s" %self.skey)
+                print('skey: %s' %self.skey)
             elif node.nodeName == 'wxsid':
                 self.sid = node.childNodes[0].data
                 self.base_request['Sid'] = self.sid
-                print("sid: %s" %self.sid)
+                print('sid: %s' %self.sid)
             elif node.nodeName == 'wxuin':
                 self.uin = node.childNodes[0].data
                 self.base_request['Uin'] = self.uin
-                print("uin: %s" %self.uin)
+                print('uin: %s' %self.uin)
             elif node.nodeName == 'pass_ticket':
                 self.pass_ticket = node.childNodes[0].data
-                print("pass_ticket: %s" %self.pass_ticket)
+                print('pass_ticket: %s' %self.pass_ticket)
         self.base_request['DeviceID'] = self.device_id
-        print("base_request: %s" %self.base_request)
+        print('base_request: %s' %self.base_request)
 
     def __initinate(self):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit'
@@ -177,9 +177,9 @@ class webwx:
         self.sync_key = dic['SyncKey']
         self.sync_key_str = '|'.join([str(item['Key']) + '_' + str(item['Val']) for item in self.sync_key['List']])
         self.account_me = dic['User']
-        print("sync_key: %s" %self.sync_key)
-        print("sync_key_str: %s" %self.sync_key_str)
-        print("account_me: %s" %self.account_me)
+        print('sync_key: %s' %self.sync_key)
+        print('sync_key_str: %s' %self.sync_key_str)
+        print('account_me: %s' %self.account_me)
 
     def __status_notify(self):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify'
@@ -216,8 +216,8 @@ class webwx:
         dic = json.loads(resp.text)
         member_list.extend(dic['MemberList'])
 
-        while dic["Seq"] != 0:
-            params['seq'] = dic["Seq"]
+        while dic['Seq'] != 0:
+            params['seq'] = dic['Seq']
             resp = self.session.post(url, params=params, headers=headers, timeout=180, proxies=self.proxies)
             resp.encoding = 'utf-8'
             dic = json.loads(resp.text)
@@ -225,15 +225,15 @@ class webwx:
 
         for member in member_list:
             if member['UserName'].find('@@') != -1:
-                self.account_groups[member['UserName']] = member   # not include detail members info
+                self.account_groups[member['UserName']] = member # not include detail members info
             elif member['VerifyFlag'] & 8 != 0:
-                self.account_subscriptions[member['UserName']] = member  # include weixin,weixinzhifu
+                self.account_subscriptions[member['UserName']] = member # include weixin,weixinzhifu
             else:
                 self.account_contacts[member['UserName']] = member # include filehelper
 
-        print("len account_subscriptions  %d:" %len(self.account_subscriptions))
-        print("len account_groups         %d:" %len(self.account_groups))
-        print("len account_contacts       %d:" %len(self.account_contacts))
+        print('len account_subscriptions  %d:' %len(self.account_subscriptions))
+        print('len account_groups         %d:' %len(self.account_groups))
+        print('len account_contacts       %d:' %len(self.account_contacts))
 
     def __get_group_members(self):
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact'
@@ -275,7 +275,7 @@ class webwx:
         data = re.search(r'window.synccheck=\{retcode:"(\d+)",selector:"(\d+)"\}', resp.text)
         retcode = data.group(1)
         selector = data.group(2)
-        print("retcode: %s, selector: %s" %(retcode, selector))
+        print('retcode: %s, selector: %s' %(retcode, selector))
         return retcode, selector
 
     def __webwx_sync(self):
@@ -324,9 +324,9 @@ class webwx:
             if found_flag1 and found_flag2:
                 break
 
-        str_at = "@" + self.account_me['NickName'] + '\u2005'
+        str_at = '@' + self.account_me['NickName'] + '\u2005'
         if my_displayname_in_group:
-            str_at = "@" + my_displayname_in_group + '\u2005'
+            str_at = '@' + my_displayname_in_group + '\u2005'
 
         if text.find(str_at) != -1:
             parsed_msg['meIsAt'] = True
@@ -336,6 +336,7 @@ class webwx:
         parsed_msg['senderType'] = 'UNSUPPORTED'
         parsed_msg['senderName'] = msg['FromUserName']
         parsed_msg['msgType'] = 'UNSUPPORTED'
+        parsed_msg['msgId'] = msg['MsgId']
 
         if self.account_groups.__contains__(msg['FromUserName']):
             parsed_msg['senderType'] = 'GROUP'
@@ -364,57 +365,57 @@ class webwx:
             elif sub_msg_type == 48: # position
                 parsed_msg['msgType'] = 'POSITION'
                 doc = xml.dom.minidom.parseString(msg['OriContent']).documentElement
-                node = doc.getElementsByTagName("location")[0]
-                parsed_msg['x'] = node.getAttribute("x")
-                parsed_msg['y'] = node.getAttribute("y")
-                parsed_msg['scale'] = node.getAttribute("scale")
-                parsed_msg['label'] = node.getAttribute("label")
-                parsed_msg['poiname'] = node.getAttribute("poiname")
+                node = doc.getElementsByTagName('location')[0]
+                parsed_msg['x'] = node.getAttribute('x')
+                parsed_msg['y'] = node.getAttribute('y')
+                parsed_msg['scale'] = node.getAttribute('scale')
+                parsed_msg['label'] = node.getAttribute('label')
+                parsed_msg['poiname'] = node.getAttribute('poiname')
         elif msg_type == 3: # image
             parsed_msg['msgType'] = 'IMAGE'
-            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['mediaId'] = msg['MsgId']
             parsed_msg['imgHeight'] = msg['ImgHeight']
             parsed_msg['imgWidth'] = msg['ImgWidth']
             parsed_msg['downloadFunc'] = self.__img_download
         elif msg_type == 34: # voice
             parsed_msg['msgType'] = 'VOICE'
-            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['mediaId'] = msg['MsgId']
             parsed_msg['voiceLength'] = msg['VoiceLength']
             parsed_msg['downloadFunc'] = self.__voice_download
         elif msg_type == 42: # card
             parsed_msg['msgType'] = 'CARD'
-            parsed_msg['msgId'] = msg['MsgId']
             content = html.unescape(msg['Content']) # TODO: delete emoji info
             content = content.replace('<br/>', '\n')
             doc = xml.dom.minidom.parseString(content).documentElement
-            parsed_msg['username'] = doc.getAttribute("username")
-            parsed_msg['nickname'] = doc.getAttribute("nickname")
-            parsed_msg['alias'] = doc.getAttribute("alias")
-            parsed_msg['province'] = doc.getAttribute("province")
-            parsed_msg['city'] = doc.getAttribute("city")
-            parsed_msg['sex'] = doc.getAttribute("sex")
-            parsed_msg['regionCode'] = doc.getAttribute("regionCode")
+            parsed_msg['username'] = doc.getAttribute('username')
+            parsed_msg['nickname'] = doc.getAttribute('nickname')
+            parsed_msg['alias'] = doc.getAttribute('alias')
+            parsed_msg['province'] = doc.getAttribute('province')
+            parsed_msg['city'] = doc.getAttribute('city')
+            parsed_msg['sex'] = doc.getAttribute('sex')
+            parsed_msg['regionCode'] = doc.getAttribute('regionCode')
         elif msg_type == 43: # video
             parsed_msg['msgType'] = 'VIDEO'
-            parsed_msg['msgId'] = msg['MsgId']
+            parsed_msg['mediaId'] = msg['MsgId']
             parsed_msg['playLength'] = msg['PlayLength']
             parsed_msg['imgHeight'] = msg['ImgHeight']
             parsed_msg['imgWidth'] = msg['ImgWidth']
             parsed_msg['downloadFunc'] = self.__video_download
         elif msg_type == 47: # animation
             parsed_msg['msgType'] = 'ANIMATION'
-            parsed_msg['msgId'] = msg['MsgId']
             parsed_msg['imgHeight'] = msg['ImgHeight']
             parsed_msg['imgWidth'] = msg['ImgWidth']
         elif msg_type == 49: # attachment
             app_msg_type = msg['AppMsgType']
             if app_msg_type == 6: # file
                 parsed_msg['msgType'] = 'FILE'
-                parsed_msg['msgId'] = msg['MsgId']
+                parsed_msg['mediaId'] = msg['MsgId']
                 parsed_msg['fileName'] = msg['FileName']
                 parsed_msg['fileSize'] = msg['FileSize']
-                parsed_msg['mediaId'] = msg['MediaId']
                 parsed_msg['downloadFunc'] = self.__file_download
+        elif msg_type == 10002: # revoke
+            parsed_msg['msgType'] = 'REVOKE'
+            parsed_msg['revokedMsgId'] = re.search('&lt;msgid&gt;(.*?)&lt;', msg['Content']).group(1)
 
         return parsed_msg
 
@@ -422,32 +423,32 @@ class webwx:
     def __process_msg(self, msg):
         pass
 
-    def __img_download(self, msg_id):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(msg_id, self.skey)
+    def __img_download(self, media_id):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(media_id, self.skey)
         resp = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
-        file_name = 'img_' + msg_id + '.jpg'
+        file_name = 'img_' + media_id + '.jpg'
         with open(file_name, 'wb') as fptr:
             fptr.write(resp.content)
 
-    def __voice_download(self, msg_id):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgID=%s&skey=%s'%(msg_id, self.skey)
+    def __voice_download(self, media_id):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgID=%s&skey=%s'%(media_id, self.skey)
         resp = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
-        file_name = 'voice_' + msg_id + '.mp3'
+        file_name = 'voice_' + media_id + '.mp3'
         with open(file_name, 'wb') as fptr:
             fptr.write(resp.content)
 
-    def __video_download(self, msg_id):
-        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgID=%s&skey=%s'%(msg_id, self.skey)
+    def __video_download(self, media_id):
+        url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgID=%s&skey=%s'%(media_id, self.skey)
         headers = {
             'Range': 'bytes=0-',
             'User-Agent' : self.headers['User-Agent']
         }
         resp = self.session.get(url, stream=True, headers=headers, proxies=self.proxies)
-        file_name = 'video_' + msg_id + '.mp4'
+        file_name = 'video_' + media_id + '.mp4'
         with open(file_name, 'wb') as fptr:
             fptr.write(resp.content)
 
-    def __file_download(self, msg_id):
+    def __file_download(self, media_id):
         pass # TODO: download file
 
     def __dump_pickle(self):
@@ -493,7 +494,7 @@ class webwx:
             self.session.cookies = requests.utils.cookiejar_from_dict(conf['cookies'])
 
             ret_code, _ = self.__sync_check()
-            if ret_code == "0":
+            if ret_code == '0':
                 return True
 
         return False
@@ -657,7 +658,7 @@ class webwx:
         if self.enable_relogin:
             if self.__load_pickle():
                 self.is_login = True
-                print("login success")
+                print('login success')
                 return
 
         self.__get_uuid()
@@ -684,5 +685,5 @@ class webwx:
             elif retcode == '1101': # logout from phone
                 self.is_login = False
                 break
-            time.sleep(3)
-        print("logout")
+            time.sleep(2)
+        print('logout')

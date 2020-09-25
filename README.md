@@ -1,6 +1,6 @@
 # webwx
 
-webwx 是一个开源的微信客户端实现接口，使用 python 完成微信的登录和消息收发功能
+```webwx``` 是一个开源的微信客户端实现接口，使用 python 完成微信的登录和消息收发功能
 
 当前支持的功能相对简单，后续会持续添加功能并优化
 
@@ -81,17 +81,21 @@ weChat.login()
 weChat.run()
 ```
 
-调用 register_process_msg_func，用自定义消息处理函数替换默认处理函数
+调用 ```register_process_msg_func```，用自定义消息处理函数替换默认处理函数
 
-msg 即解析后的消息，字典类型，消息类型不同所包含的字段也不同，有些字段是必有的，有些是可选的
+```msg``` 即解析后的消息，字典类型，消息类型不同所包含的字段也不同，有些字段是必有的，有些是可选的
 
 ### 必有字段：
 
+```python
     'senderType': 字符串类型，取值 "GROUP/SUBSCRIPTION/CONTACT/MYSELF/UNSUPPORTED", 表示消息来源于群组/公众号/联系人/自己/不支持
 
     'senderName': 字符串类型，表示发送者的身份，由系统分配，@@开头表示群组，@开头表示联系人或者公众号
 
-    'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/不支持
+    'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/REVOKE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/撤回/不支持
+
+    'msgId': 字符串类型，表示消息的唯一 id，由系统分配
+```
 
 ### 可选字段：
 
@@ -100,8 +104,8 @@ senderType = GROUP
 
     'groupNickName': 字符串类型，表示发送者所在的群组昵称
     'userNickName': 字符串类型， 表示发送者的昵称
-    'userDisplayName': 字符串类型，表示发送者设置的自己在该群的显示名称，没有设置为 ""
-    'meIsAt': 布尔类型，表示自己是否被 @
+    'userDisplayName': 字符串类型，表示发送者设置的自己在该群的显示名称，没有设置为 ''
+    'meIsAt': 布尔类型，表示自己是否被群组消息 @
 
 
 senderType = SUBSCRIPTION
@@ -144,22 +148,22 @@ msgType = IMAGE:
 
     'imgWidth': 整数类型，表示图片宽度
 
-    'msgId': 字符串类型，表示图片在服务器的资源id，由系统分配，用于下载使用
+    'mediaId': 字符串类型，表示图片在服务器的资源 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载图片的函数，有一个输入参数 msgId
+    'downloadFunc': 函数类型，表示下载图片的函数，有一个输入参数 mediaId
 
-    调用 msg['downloadFunc'](msg['msgId'])，将下载图片到当前目录，保存文件名为 img_(msgId).jpg
+    调用 msg['downloadFunc'](msg['mediaId'])，将下载图片到当前目录，保存文件名为 img_(mediaId).jpg
 
 
 msgType = VOICE:
 
     'voiceLength': 整数类型，表示语音时长，单位毫秒
 
-    'msgId': 字符串类型，表示图片在服务器的资源id，由系统分配，用于下载使用
+    'mediaId': 字符串类型，表示图片在服务器的资源 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载语音的函数，有一个输入参数 msgId
+    'downloadFunc': 函数类型，表示下载语音的函数，有一个输入参数 mediaId
 
-    调用 msg['downloadFunc'](msg['msgId'])，将下载语音到当前目录，保存文件名为 voice_xxx.mp3
+    调用 msg['downloadFunc'](msg['mediaId'])，将下载语音到当前目录，保存文件名为 voice_(mediaId).mp3
 
 
 msgType = VIDEO:
@@ -170,11 +174,11 @@ msgType = VIDEO:
 
     'playLength': 整数类型，表示视频时长，单位秒
 
-    'msgId': 字符串类型，表示视频在服务器的资源id，由系统分配，用于下载使用
+    'mediaId': 字符串类型，表示视频在服务器的资源 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载视频的函数，有一个输入参数 msgId
+    'downloadFunc': 函数类型，表示下载视频的函数，有一个输入参数 mediaId
 
-    调用 msg['downloadFunc'](msg['msgId'])，将下载视频到当前目录，保存文件名为 video_(msgId).mp4
+    调用 msg['downloadFunc'](msg['mediaId'])，将下载视频到当前目录，保存文件名为 video_(mediaId).mp4
 
 
 msgType = CARD:
@@ -193,16 +197,12 @@ msgType = CARD:
 
     'regionCode': 字符串类型，表示注册地
 
-    'msgId': 字符串类型，表示视频在服务器的资源id，由系统分配，未使用
-
 
 msgType = ANIMATION:
 
     'imgHeight': 整数类型，表示表情高度
 
     'imgWidth': 整数类型，表示表情宽度
-
-    'msgId': 字符串类型，表示表情在服务器的资源id，由系统分配，未使用
 
 
 msgType = FILE:
@@ -211,11 +211,14 @@ msgType = FILE:
 
     'fileSize': 字符串类型，表示文件大小，单位字节
 
-    'mediaId': 字符串类型，表示视频多媒体id，由系统分配，用于下载使用
+    'mediaId': 字符串类型，表示视频多媒体 id，由系统分配，用于下载使用
 
-    'msgId': 字符串类型，表示视频在服务器的资源id，由系统分配
+    'downloadFunc': 函数类型，表示下载文件的函数，该功能当前未实现
 
-    'downloadFunc': 函数类型，表示下载文件的函数，未实现
+
+msgType = REVOKE:
+
+    'revokedMsgId': 字符串类型，表示被撤回的那条消息的 id
 
 
 msgType = UNSUPPORTED:
@@ -228,7 +231,7 @@ msgType = UNSUPPORTED:
 
 ### 使用代理
 
-在 webwx 的构造函数中传入代理，就可以使用代理完成 GET/POST 请求
+在 webwx 的构造函数中传入代理，使用代理完成 GET/POST 请求
 
 ```python
 proxies = { 'http':'http://ip:port', 'https':'https://ip:port' }
@@ -239,56 +242,67 @@ weChat = webwx.webwx(proxies=proxies)
 ### 下载多媒体资源
 
 ```python
-# 下载所有接收到的图片/语音/视频消息，保存为 jpg/mp3/mp4 文件到当前目录
+# 下载接收到的图片/语音/视频消息，保存为 .jpg/.mp3/.mp4 文件到当前目录
 def process_msg(self, msg):
     if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO"]:
-        msg['downloadFunc'](msg['msgId'])
-```
-
-
-### 发送多媒体资源
-
-```python
-# 监测特定群组消息内容，根据内容发送图片/语音/视频消息到特定联系人
-img_path = 'img_5100655276253422831.jpg'
-video_path = 'video_1879067029541949726.mp4'
-doc_path = 'pdf_3446080029541949727.pdf'
-
-def process_msg(self, msg):
-    if msg['senderType'] == 'GROUP' and msg['groupNickName'] == u'欢乐大家庭' and msg['msgType'] == 'TEXT':
-        if msg['content'] == u'文本':
-            self.send_text('hello world', u'张三')
-        if msg['content'] == u'图片':
-            self.send_image(img_path, u'张三')
-        if msg['content'] == u'视频':
-            self.send_video(video_path, u'张三')
-        if msg['content'] == u'文件':
-            self.send_file(doc_path, u'张三')
+        msg['downloadFunc'](msg['mediaId'])
 ```
 
 
 ### 智能聊天机器人
 
 ```python
+EMOTIBOT_API_ID = "xxx" # 申请的 API_ID
+EMOTIBOT_API_URL = "http://idc.emotibot.com/api/ApiKey/openapi.php"
+
+TULING_API_KEY = "xxx"  # 申请的 API_KEY
+TULING_API_URL = "http://openapi.tuling123.com/openapi/api/v2"
+
 def emotibot(req_text):
     params = {
         "cmd": "chat",
-        "appid": "xxx", # 申请的 emotibot 机器人id
+        "appid": EMOTIBOT_API_ID,
         "userid": "xiaoming",
         "text": req_text,
         "location": "hangzhou"
     }
 
-    resp = requests.request("post", "http://idc.emotibot.com/api/ApiKey/openapi.php", params=params)
+    resp = requests.request("post", EMOTIBOT_API_URL, params=params)
     dic = json.loads(resp.text)
     resp_text = dic["data"][0]["value"]
     return resp_text
 
-# 接收特定联系人消息，通过智能机器人获取回复消息，然后发送回对方
+def tuling(req_text):
+    req = {
+        "reqType": 0,
+        "perception": {
+            "inputText": {
+                "text": req_text
+            },
+            "selfInfo": {
+                "location": {
+                    "city": "hangzhou",
+                    "province": "zhejiang",
+                    "street": "dongxin street"
+                }
+            }
+        },
+        "userInfo": {
+            "apiKey": TULING_API_KEY,
+            "userId": "xiaoming"
+        }
+    }
+
+    resp = requests.request("post", TULING_API_URL, json=req)
+    dic = json.loads(resp.text)
+    resp_text = dic["results"][0]["values"]["text"]
+    return resp_text
+
 def process_msg(self, msg):
-    if msg['senderType'] == 'CONTACT' and msg['contactNickName'] == u'张三' and msg['msgType'] == 'TEXT':
+    if msg['senderType'] == 'CONTACT' and msg['contactRemarkName'] == u'张三' and msg['msgType'] == 'TEXT':
         req_text = msg['content']
-        resp_text = emotibot(req_text)
+        # resp_text = emotibot(req_text)
+        resp_text = tuling(req_text)
         self.send_text(resp_text, msg['senderName'])
 ```
 
@@ -297,13 +311,49 @@ def process_msg(self, msg):
 
 ```python
 def process_msg(self, msg):
-    if msg['senderType'] == 'GROUP' and msg['meIsAt'] == True:
-        print(msg) # 可以扩展做些其它自定义处理
+    if msg['senderType'] == 'GROUP' and msg['msgType'] == 'TEXT':
+        if msg['meIsAt'] == True:
+            self.send_text(msg['content'], 'filehelper')
+```
+
+
+### 监测撤回的消息
+
+```python
+queue_msgs = {}
+
+def process_msg(self, msg):
+    if msg['msgType'] == 'TEXT':
+        msg['life'] = 120
+        queue_msgs[msg['msgId']] = msg
+
+    if msg['msgType'] == 'REVOKE':
+        revoked_msg = queue_msgs[msg['revokedMsgId']]
+        # self.send_text(revoked_msg['content'], revoked_msg['senderName']) # 撤回的内容发回给发送方
+        self.send_text(revoked_msg['content'], 'filehelper') # 撤销的内容发送到 filehelper
+
+def clean_msgs():
+    while True:
+        keys = list(queue_msgs.keys())
+        for key in keys:
+            queue_msgs[key]['life'] -= 1
+            if queue_msgs[key]['life'] == 0:
+                del queue_msgs[key]
+        time.sleep(1)
+
+
+threading.Thread(target=clean_msgs).start()
+
+weChat = webwx.webwx()
+weChat.register_process_msg_func(process_msg)
+weChat.login()
+weChat.run()
 ```
 
 
 ## 待实现功能
 
-1. 解决 emoji 表情信息过滤
-2. 增加文件下载功能
-3. 增加系统异常处理
+1. 优化缓冲大小，提高加载效率
+2. emoji 表情内容过滤
+3. 增加普通文件下载功能
+4. 增加异常处理

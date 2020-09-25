@@ -88,13 +88,13 @@ weChat.run()
 ### 必有字段：
 
 ```python
-    'senderType': 字符串类型，取值 "GROUP/SUBSCRIPTION/CONTACT/MYSELF/UNSUPPORTED", 表示消息来源于群组/公众号/联系人/自己/不支持
+'senderType': 字符串类型，取值 "GROUP/SUBSCRIPTION/CONTACT/MYSELF/UNSUPPORTED", 表示消息来源于群组/公众号/联系人/自己/不支持
 
-    'senderName': 字符串类型，表示发送者的身份，由系统分配，@@开头表示群组，@开头表示联系人或者公众号
+'senderName': 字符串类型，表示发送者的身份，由系统分配，@@开头表示群组，@开头表示联系人或者公众号
 
-    'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/REVOKE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/撤回/不支持
+'msgType': 字符串类型，取值 "TEXT/POSITION/IMAGE/VOICE/VIDEO/CARD/ANIMATION/FILE/REVOKE/UNSUPPORTED", 表示消息类型是文本/位置/图片/语音/视频/名片/表情/文件/撤回/不支持
 
-    'msgId': 字符串类型，表示消息的唯一 id，由系统分配
+'msgId': 字符串类型，表示消息的唯一 id，由系统分配
 ```
 
 ### 可选字段：
@@ -230,7 +230,6 @@ msgType = UNSUPPORTED:
 ## 进阶应用
 
 ### 使用代理
-
 在 webwx 的构造函数中传入代理，使用代理完成 GET/POST 请求
 
 ```python
@@ -240,6 +239,7 @@ weChat = webwx.webwx(proxies=proxies)
 
 
 ### 下载多媒体资源
+完整代码请参考: https://blog.csdn.net/chenwh_cn/article/details/108794650
 
 ```python
 # 下载接收到的图片/语音/视频消息，保存为 .jpg/.mp3/.mp4 文件到当前目录
@@ -250,6 +250,7 @@ def process_msg(self, msg):
 
 
 ### 智能聊天机器人
+完整代码请参考: https://blog.csdn.net/chenwh_cn/article/details/108663666
 
 ```python
 EMOTIBOT_API_ID = "xxx" # 申请的 API_ID
@@ -308,6 +309,7 @@ def process_msg(self, msg):
 
 
 ### 监测自己被群组 @ 消息
+完整代码请参考: https://blog.csdn.net/chenwh_cn/article/details/108774217
 
 ```python
 def process_msg(self, msg):
@@ -318,6 +320,7 @@ def process_msg(self, msg):
 
 
 ### 监测撤回的消息
+完整代码请参考: https://blog.csdn.net/chenwh_cn/article/details/108797745
 
 ```python
 queue_msgs = {}

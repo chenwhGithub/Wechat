@@ -309,6 +309,8 @@ class webwx:
         parsed_msg['userDisplayName'] = ''
         parsed_msg['meIsAt'] = False
 
+        found_flag1 = False
+        found_flag2 = False
         ret = re.match('(@[0-9a-z]*?):<br/>(.*)$', msg['Content']) # username:<br>text
         user_name, text = ret.groups()
         for item in self.account_groups_members[msg['FromUserName']]['MemberList']:
@@ -409,8 +411,9 @@ class webwx:
             app_msg_type = msg['AppMsgType']
             if app_msg_type == 6: # file
                 parsed_msg['msgType'] = 'FILE'
-                parsed_msg['mediaId'] = msg['MsgId']
+                parsed_msg['mediaId'] = msg['MediaId']
                 parsed_msg['fileName'] = msg['FileName']
+                parsed_msg['encryFileName'] = msg['EncryFileName']
                 parsed_msg['fileSize'] = msg['FileSize']
                 parsed_msg['downloadFunc'] = self.__file_download
         elif msg_type == 10002: # revoke
@@ -423,21 +426,24 @@ class webwx:
     def __process_msg(self, msg):
         pass
 
-    def __img_download(self, media_id):
+    def __img_download(self, msg):
+        media_id = msg['mediaId']
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?MsgID=%s&skey=%s'%(media_id, self.skey)
         resp = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
         file_name = 'img_' + media_id + '.jpg'
         with open(file_name, 'wb') as fptr:
             fptr.write(resp.content)
 
-    def __voice_download(self, media_id):
+    def __voice_download(self, msg):
+        media_id = msg['mediaId']
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgID=%s&skey=%s'%(media_id, self.skey)
         resp = self.session.get(url, stream=True, headers=self.headers, proxies=self.proxies)
         file_name = 'voice_' + media_id + '.mp3'
         with open(file_name, 'wb') as fptr:
             fptr.write(resp.content)
 
-    def __video_download(self, media_id):
+    def __video_download(self, msg):
+        media_id = msg['mediaId']
         url = 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgID=%s&skey=%s'%(media_id, self.skey)
         headers = {
             'Range': 'bytes=0-',
@@ -448,8 +454,19 @@ class webwx:
         with open(file_name, 'wb') as fptr:
             fptr.write(resp.content)
 
-    def __file_download(self, media_id):
-        pass # TODO: download file
+    def __file_download(self, msg):
+        url = 'https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmedia'
+        params = {
+            'sender': msg['senderName'],
+            'mediaid': msg['mediaId'],
+            'encryfilename': msg['encryFileName'],
+            'fromuser': self.uin,
+            'pass_ticket': self.pass_ticket,
+            'webwx_data_ticket': self.session.cookies['webwx_data_ticket']
+        }
+        resp = self.session.get(url, params=params, stream=True, headers=self.headers, proxies=self.proxies)
+        with open(msg['fileName'], 'wb') as fptr:
+            fptr.write(resp.content)
 
     def __dump_pickle(self):
         conf = {

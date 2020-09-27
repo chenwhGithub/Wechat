@@ -2,7 +2,7 @@
 
 ```webwx``` 是一个开源的微信客户端实现接口，使用 python 完成微信的登录和消息收发功能
 
-当前支持的功能相对简单，后续会持续添加功能并优化
+当前支持的功能相对基础，后续会持续新增功能并优化
 
 具体协议分析参考博客：https://blog.csdn.net/chenwh_cn/article/details/108581139
 
@@ -24,32 +24,32 @@ False: 二维码保存在图片文件中，通过打开图片文件的方式显�
 
 ### send_text(text, receiver):
 ```python
-发送普通文本消息，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+发送普通文本消息，receiver 可以取值 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
 ```
 
 ### send_image(file_name, receiver):
 ```python
-发送 .jpg 格式图片，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+发送 .jpg 格式图片，receiver 可以取值 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
 ```
 
 ### send_video(file_name, receiver):
 ```python
-发送 .mp4 格式视频，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+发送 .mp4 格式视频，receiver 可以取值 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
 ```
 
 ### send_file(file_name, receiver):
 ```python
-发送普通文件，接收者可以是 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
+发送普通文件，receiver 可以取值 msg['senderName']/联系人昵称/联系人备注名/群组昵称，并按照这个顺序优先查找
 ```
 
 ### register_process_msg_func(func):
 ```python
-注册自定义消息处理函数，默认接收到消息后不做任何处理
+注册自定义消息处理函数，默认消息处理函数不做任何处理
 ```
 
 ### run():
 ```python
-循环接收并处理消息，1. 检查是否有接收到新消息 2. 解析消息，不同类型填充不同字段信息 3. 调用默认的或自定义的消息处理函数处理消息
+循环接收并处理消息，1. 检查是否有接收到新消息 2. 解析消息，不同消息类型解析出不同字段信息 3. 调用默认的或自定义的消息处理函数处理消息
 ```
 
 
@@ -63,7 +63,7 @@ weChat.login()
 weChat.run()
 ```
 
-该示例实现最基础功能：微信二维码扫码登录或者缓存自动登录，然后接收并解析消息，最后调用默认的或自定义的消息处理函数处理消息
+该示例实现最基础功能：微信二维码扫码登录或者缓存自动登录，然后接收并解析消息，最后调用默认消息处理函数处理消息
 
 
 ## 自定义消息处理
@@ -150,9 +150,9 @@ msgType = IMAGE:
 
     'mediaId': 字符串类型，表示图片在服务器的资源 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载图片的函数，有一个输入参数 mediaId
+    'downloadFunc': 函数类型，表示下载图片的函数
 
-    调用 msg['downloadFunc'](msg['mediaId'])，将下载图片到当前目录，保存文件名为 img_(mediaId).jpg
+    调用 msg['downloadFunc'](msg)，将下载图片到当前目录，保存文件名为 img_(mediaId).jpg
 
 
 msgType = VOICE:
@@ -161,9 +161,9 @@ msgType = VOICE:
 
     'mediaId': 字符串类型，表示图片在服务器的资源 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载语音的函数，有一个输入参数 mediaId
+    'downloadFunc': 函数类型，表示下载语音的函数
 
-    调用 msg['downloadFunc'](msg['mediaId'])，将下载语音到当前目录，保存文件名为 voice_(mediaId).mp3
+    调用 msg['downloadFunc'](msg)，将下载语音到当前目录，保存文件名为 voice_(mediaId).mp3
 
 
 msgType = VIDEO:
@@ -176,9 +176,9 @@ msgType = VIDEO:
 
     'mediaId': 字符串类型，表示视频在服务器的资源 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载视频的函数，有一个输入参数 mediaId
+    'downloadFunc': 函数类型，表示下载视频的函数
 
-    调用 msg['downloadFunc'](msg['mediaId'])，将下载视频到当前目录，保存文件名为 video_(mediaId).mp4
+    调用 msg['downloadFunc'](msg)，将下载视频到当前目录，保存文件名为 video_(mediaId).mp4
 
 
 msgType = CARD:
@@ -209,12 +209,15 @@ msgType = FILE:
 
     'fileName': 字符串类型，表示文件名
 
+    'encryFileName': 字符串类型，表示 encry 文件名
+
     'fileSize': 字符串类型，表示文件大小，单位字节
 
     'mediaId': 字符串类型，表示视频多媒体 id，由系统分配，用于下载使用
 
-    'downloadFunc': 函数类型，表示下载文件的函数，该功能当前未实现
+    'downloadFunc': 函数类型，表示下载文件的函数
 
+    调用 msg['downloadFunc'](msg)，将下载文件到当前目录，保存文件名为 'fileName' 字段值
 
 msgType = REVOKE:
 
@@ -242,10 +245,10 @@ weChat = webwx.webwx(proxies=proxies)
 完整代码请参考: https://blog.csdn.net/chenwh_cn/article/details/108794650
 
 ```python
-# 下载接收到的图片/语音/视频消息，保存为 .jpg/.mp3/.mp4 文件到当前目录
+# 下载接收到的图片/语音/视频/普通文件，保存为 .jpg/.mp3/.mp4/.xxx 文件到当前目录
 def process_msg(self, msg):
-    if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO"]:
-        msg['downloadFunc'](msg['mediaId'])
+    if msg['msgType'] in ["IMAGE", "VOICE", "VIDEO", "FILE"]:
+        msg['downloadFunc'](msg)
 ```
 
 
@@ -333,7 +336,7 @@ def process_msg(self, msg):
     if msg['msgType'] == 'REVOKE':
         revoked_msg = queue_msgs[msg['revokedMsgId']]
         # self.send_text(revoked_msg['content'], revoked_msg['senderName']) # 撤回的内容发回给发送方
-        self.send_text(revoked_msg['content'], 'filehelper') # 撤销的内容发送到 filehelper
+        self.send_text(revoked_msg['content'], 'filehelper') # 撤回的内容发送到 filehelper
 
 def clean_msgs():
     while True:
@@ -356,7 +359,6 @@ weChat.run()
 
 ## 待实现功能
 
-1. 优化缓冲大小，提高加载效率
+1. 优化缓存，提高加载效率
 2. emoji 表情内容过滤
-3. 增加普通文件下载功能
-4. 增加异常处理
+3. 增加异常处理
